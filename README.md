@@ -1,3 +1,3 @@
 # pyReef
 
-Carbonate platform modelling
+Carbonate platform modelling.
