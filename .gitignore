@@ -4,7 +4,6 @@
 *.mod
 *.o
 *.egg-info
-*.ipynb
 Test/.ipynb_checkpoints/
 *.swp
 *.hdf5
