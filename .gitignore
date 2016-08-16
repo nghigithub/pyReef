@@ -3,6 +3,7 @@
 *.so
 *.mod
 *.o
+*.ipynb
 Test/.ipynb_checkpoints/
 *.swp
 *.hdf5
@@ -10,7 +11,7 @@ Test/.ipynb_checkpoints/
 *.xdmf
 .ipynb_checkpoints
 build/
-libUtils/WaveComp/build/
+pyReef/libUtils/WaveComp/build/
 output_*
 .AppleDouble
 __MACOSX
