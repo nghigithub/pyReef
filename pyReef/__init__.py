@@ -10,4 +10,6 @@
    Top-level pyReef Model implementation.
 """
 
+from .forcing import xmlParser
+from .forcing import forceSim
 from .libUtils import *
