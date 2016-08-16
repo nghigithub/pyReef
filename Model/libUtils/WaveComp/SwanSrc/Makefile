@@ -1,7 +1,8 @@
 # Fortran optimisation flags
-F77FLAGS = -O3 -m64 -w -fno-second-underscore
+F77FLAGS = -O3 -m64 -w -fno-second-underscore -shared  -fPIC
 FCFLAGS=-O3 -funroll-loops --param max-unroll-times=2 -cpp \
-    -ffree-form -ftree-vectorize -ffast-math -lstdc++ -ffree-line-length-none
+    -ffree-form -ftree-vectorize -ffast-math -lstdc++ -ffree-line-length-none \
+		-shared -fPIC
 
 
 BUILDDIR=../build

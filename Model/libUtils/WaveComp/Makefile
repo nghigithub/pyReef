@@ -2,7 +2,8 @@
 F77FLAGS = -O3 -m64 -w -fno-second-underscore
 
 FCFLAGS=-O3 -funroll-loops --param max-unroll-times=2 -cpp \
-    -ffree-form -ftree-vectorize -ffast-math -lstdc++ -ffree-line-length-none
+    -ffree-form -ftree-vectorize -ffast-math -lstdc++ -ffree-line-length-none \
+		-shared -fPIC
 
 TOPDIR = $(shell pwd)
 
@@ -19,7 +20,7 @@ FFLAGS= $(FCFLAGS) -I$(MODDIR)
 TOPDIR = $(shell pwd)
 
 TARGET = WaveParam
-TARGETLIB = $(LIBDIR)/lib$(TARGET).a
+TARGETLIB = $(LIBDIR)/lib$(TARGET).so
 
 SRCDIRs = $(TOPDIR)/SwanSrc
 SOURCE1 = WaveClass.f90
