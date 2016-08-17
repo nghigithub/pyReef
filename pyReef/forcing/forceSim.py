@@ -13,7 +13,6 @@ processes related to wave climate, wind field and sea level.
 import os
 import numpy
 import pandas
-import triangle
 import mpi4py.MPI as mpi
 from scipy.ndimage.filters import gaussian_filter
 from scipy import interpolate

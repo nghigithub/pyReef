@@ -1,48 +1,118 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<BADLANDS:input xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xmlns:BADLANDS="http://bibucket.com/git/xsd/XSDBADLANDS" xmlns:xi="http://www.w3.org/2001/XInclude"
-	xsi:schemaLocation="http://bibucket.com/git/xsd/XSDBADLANDS
-	bibucket.com/git/xsd/XSDBADLANDS/schema-BADLANDS.xsd">
+<pyreef xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
-	<TopoGrid>
-    <Grid>data/gab_topo.nodes</Grid>
-    <GridX>250</GridX>
-    <GridY>249</GridY>
-    <GridSpace>3000</GridSpace>
-    <latGrid>-32.5</latGrid>
-		<syncFolder>Poseidon</syncFolder>
-    <spmForcing>0</spmForcing>
-    <initDep>50</initDep>
-    <circForcing>0</circForcing>
-    <waveForcing>1</waveForcing>
-  </TopoGrid>
+	<!-- Regular grid structure -->
+	<grid>
+			<!-- Digital elevation model file path -->
+			<demfile>data/gab_topo.nodes</demfile>
+			<!-- Optional parameter (integer) used to change model resolution.
+					 The default value is set to 1. Factor above 1 will decrease
+					 the resolution accordingly and factor between 0 and 1 will
+					 increase it.  -->
+			<resfactor>1.</resfactor>
+	</grid>
 
-	<Time>
-		<startTime>0.</startTime>
-    <endTime>1.</endTime>
-    <syncTime>1.</syncTime>
-		<outputTime>1.</outputTime>
-	</Time>
+	<!-- Simulation time structure -->
+	<time>
+			<!-- Simulation start time [a] -->
+			<start>0.</start>
+			<!-- Simulation end time [a] -->
+			<end>1.</end>
+			<!-- Time step [a] -->
+			<dt>1.</dt>
+			<!-- Wave interval [a] -->
+			<twave>1.</twave>
+			<!-- Display interval [a] -->
+			<display>1.</display>
+	</time>
 
-	<CirculationParam>
-	  <Courant>1.</Courant>
-	  <stormTime>24</stormTime>
-	  <fricCoef>0.0005</fricCoef>
-      <filterStep>10</filterStep>
-      <actionMaxDepth>200.0</actionMaxDepth>
-	</CirculationParam>
+	<!-- Sea-level structure
+	     The following methods can be used:
+	        - a constant sea-level position for the entire simulation [m]
+	        - a sea-level fluctuations curve (defined in a file)
+	-->
+	<sea>
+			<!-- Constant sea-level value [m] -->
+		  <val>-50.</val>
+		  <!-- Sea-level curve - (optional). The file is made of 2 columns:
+							- first column: the time in year (increasing order)
+							- second column: the sea-level position for the considered time [m]
+					 For any given time in the simulation the sea-level is obtained by linear interpolation
+			-->
+		  <!--curve>data/sealvl.csv</curve-->
+	</sea>
 
-	<OceanForecast>
-	  <waveBase>50.0</waveBase>
-	  <nbForecast>1</nbForecast>
-    <forecastClass>
-			<subgroupNb>1</subgroupNb>
-      <start>0</start>
-      <end>1</end>
-	    <subgroupParam>0.3 30.0 140.0</subgroupParam>
-	  </forecastClass>
-	</OceanForecast>
+	<!-- Sea-surface temperature structure
+	     The following methods can be used:
+	        - a constant temperature for the entire simulation [Celsius]
+	        - a temperature fluctuations curve (defined in a file)
+	-->
+	<temperature>
+			<!-- Constant temperature value - (optional) -->
+			<val>30.</val>
+		  <!-- Temperature curve - (optional). The file is made of 2 columns:
+							- first column: the time in year (increasing order)
+							- second column: the temperature value for the considered time [Celsius]
+					 For any given time in the simulation the temperature is obtained by linear interpolation
+			-->
+		  <!--curve>data/temp.csv</curve-->
+	</temperature>
 
-	<OutputDirectory>GABcirc</OutputDirectory>
+	<!-- Sea-surface salinity structure
+	     The following methods can be used:
+	        - a constant salinity for the entire simulation [PSU (Practical Salinity Unit)]
+	        - a salinity fluctuations curve (defined in a file)
+	-->
+	<salinity>
+			<!-- Constant salinity value - (optional) -->
+			<val>30.</val>
+		  <!-- Salinity curve - (optional). The file is made of 2 columns:
+							- first column: the time in year (increasing order)
+							- second column: the temperature value for the considered time [PSU]
+					 For any given time in the simulation the salinity is obtained by linear interpolation
+			-->
+		  <!--curve>data/sal.csv</curve-->
+	</salinity>
 
-</BADLANDS:input>
+	<!-- Wave field structure -->
+	<wavefield>
+			<!-- Maximum depth for wave influence (m)-->
+		  <base>50.0</base>
+			<!-- Number of wave climate temporal events. -->
+		  <events>2</events>
+			<!-- Wave definition based on wind parameters. -->
+	    <wave>
+				<!-- Wave start time [a] -->
+	      <start>0</start>
+				<!-- Wave end time [a] -->
+	      <end>1</end>
+				<!-- Percentage of time this event is active during the time interval -->
+	      <perc>0.3</perc>
+				<!-- Wind velocity at 10 metres elevation [m/s] -->
+	      <windv>5</windv>
+				<!-- Wind direction at 10 m elevation in degrees from the X-axis (horizontal) anti-clock wise -->
+	      <dir>140</dir>
+		  </wave>
+			<!-- Wave definition based on wave parameters. -->
+	    <wave>
+				<!-- Wave start time [a] -->
+	      <start>0</start>
+				<!-- Wave end time [a] -->
+	      <end>1</end>
+				<!-- Percentage of time this event is active during the time interval -->
+	      <perc>0.3</perc>
+				<!-- Significant wave height [m] -->
+	      <hs>2</hs>
+				<!-- Characteristic wave period of the energy spectrum [s] -->
+				<per>10.</per>
+				<!-- Peak wave direction in degrees from the X-axis (horizontal) anti-clock wise -->
+	      <dir>140</dir>
+				<!-- Coefficient of directional spreading -->
+				<ds>2.</ds>
+		  </wave>
+	</wavefield>
+
+	<!-- Output folder path -->
+	<outfolder>out</outfolder>
+
+</pyreef>

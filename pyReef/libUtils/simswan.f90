@@ -27,7 +27,6 @@ contains
       integer :: comm
 
       ! start up MPI
-      !call mpi_init(ierr)
       call mpi_comm_size(comm,nprocs,ierr)
       call mpi_comm_rank(comm,iam,ierr)
       ocean_comm_world=comm
