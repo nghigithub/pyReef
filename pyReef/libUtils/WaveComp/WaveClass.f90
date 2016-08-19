@@ -20,18 +20,10 @@ module classdata
 
   ! Forecast parameters
   real::wave_base
-  real,dimension(8)::forecast_param
+  real,dimension(2)::forecast_param
 
   ! Number of hindcast scenarios
   type hindcast_param
-    ! Significant wave height (in metres).
-    real::hs
-    ! Wave period of the energy spectrum
-    real::per
-    ! Peak wave direction.
-    real::dir
-    ! Coefficient of directional spreading.
-    real::dd
     ! Wind velocity at 10 m elevation (m/s).
     real::wvel
     ! Wind direction.
@@ -240,7 +232,7 @@ contains
     logical::found
     integer::i,j,l1,scn
     character(len=128)::command,stg
-    real::x,y,z,pi
+    real::x,y,z !,pi
 
     ! SPM grid extent
     stratal_x=sp_n
@@ -260,15 +252,11 @@ contains
     close(17)
 
     ! Allocate forecasts
-    pi=4.*atan(1.)
-    forecast_param(1)=hindcast%hs
-    forecast_param(2)=hindcast%per
-    forecast_param(3)=hindcast%dir
-    forecast_param(4)=hindcast%dd
-    forecast_param(5)=hindcast%wvel
-    forecast_param(6)=hindcast%wdir
-    forecast_param(7)=forecast_param(5)*sin(forecast_param(6)*180./pi)
-    forecast_param(8)=forecast_param(5)*cos(forecast_param(6)* 180./pi)
+    !pi=4.*atan(1.)
+    forecast_param(1)=hindcast%wvel
+    forecast_param(2)=hindcast%wdir
+    !forecast_param(7)=forecast_param(5)*sin(forecast_param(6)*180./pi)
+    !forecast_param(8)=forecast_param(5)*cos(forecast_param(6)* 180./pi)
 
     ! Create the output directory
     outdir1=''

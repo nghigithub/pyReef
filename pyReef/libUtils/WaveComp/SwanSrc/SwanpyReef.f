@@ -64,9 +64,6 @@
       LOGICAL   LOPEN
       LOGICAL STPNOW                                                      34.01
 
-       inwave = .false.
-       inwind = .true.
-
 !     --- initialize MPI
       CALL SWINITMPI( MyComm )
 
@@ -229,7 +226,7 @@
 
       IMPLICIT NONE
 !
-      REAL,  intent(in) :: hindcast( 6 )
+      REAL,  intent(in) :: hindcast( 2 )
       INTEGER   IUNIT
       INTEGER   IOSTAT, IT0, IT, SAVITE, ILEN
       INTEGER   INERR

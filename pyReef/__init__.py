@@ -12,6 +12,7 @@
 
 from .forcing import xmlParser
 from .forcing import forceSim
+from .simulation import outputGrid
 from .simulation import raster2surf
 from .simulation import buildMesh
 from .libUtils import *

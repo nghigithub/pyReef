@@ -14,6 +14,7 @@ import glob
 import numpy
 import shutil
 import xml.etree.ElementTree as ET
+from decimal import Decimal
 
 class xmlParser:
     """
@@ -45,31 +46,31 @@ class xmlParser:
         self.dt = None
         self.tWave = None
         self.tDisplay = None
+        self.laytime = None
 
+        self.seaOn = False
         self.seaval = 0.
         self.seafile = None
 
+        self.tempOn = False
         self.tempval = 25.
         self.tempfile = None
 
+        self.salOn = False
         self.salval = 35.5
         self.salfile = None
 
+        self.waveOn = False
         self.waveBase = 10000.
         self.waveNb = 0
-        self.waveWind = False
-        self.waveParam = False
         self.waveTime = None
         self.wavePerc = None
         self.waveWu = None
         self.waveWd = None
-        self.waveDir = None
-        self.waveHs = None
-        self.wavePer = None
-        self.waveDs = None
+        self.wavelist = None
+        self.climlist = None
 
         self.makeUniqueOutputDir = makeUniqueOutputDir
-
         self.outDir = None
 
         self.h5file = 'h5/surf.time'
@@ -140,7 +141,7 @@ class xmlParser:
                 self.tWave = float(element.text)
             else:
                 raise ValueError('Error in the definition of the simulation time: wave interval is required')
-            if (self.tEnd - self.tStart) % self.tWave != 0:
+            if Decimal(self.tEnd - self.tStart) % Decimal(self.tWave) != 0.:
                 raise ValueError('Error in the definition of the simulation time: wave interval needs to be a multiple of simulation time.')
             element = None
             element = time.find('display')
@@ -148,8 +149,24 @@ class xmlParser:
                 self.tDisplay = float(element.text)
             else:
                 raise ValueError('Error in the definition of the simulation time: display time declaration is required')
-            if (self.tEnd - self.tStart) % self.tDisplay != 0:
+            if Decimal(self.tEnd - self.tStart) % Decimal(self.tDisplay) != 0.:
                 raise ValueError('Error in the definition of the simulation time: display time needs to be a multiple of simulation time.')
+            element = None
+            element = time.find('laytime')
+            if element is not None:
+                self.laytime = float(element.text)
+            else:
+                self.laytime = self.tDisplay
+            if self.laytime >  self.tDisplay:
+                 self.laytime = self.tDisplay
+            if self.tWave >  self.tDisplay:
+                  self.tWave = self.tDisplay
+            if Decimal(self.tDisplay) % Decimal(self.laytime) != 0.:
+                raise ValueError('Error in the XmL file: stratal layer interval needs to be an exact multiple of the display interval!')
+            if Decimal(self.tDisplay) % Decimal(self.tWave) != 0.:
+                raise ValueError('Error in the XmL file: wave time interval needs to be an exact multiple of the display interval!')
+            if Decimal(self.tEnd-self.tStart) % Decimal(self.tDisplay) != 0.:
+                raise ValueError('Error in the XmL file: display interval needs to be an exact multiple of the simulation time interval!')
         else:
             raise ValueError('Error in the XmL file: time structure definition is required!')
 
@@ -157,6 +174,7 @@ class xmlParser:
         sea = None
         sea = root.find('sea')
         if sea is not None:
+            self.seaOn = True
             element = None
             element = sea.find('val')
             if element is not None:
@@ -179,6 +197,7 @@ class xmlParser:
         temp = None
         temp = root.find('temperature')
         if temp is not None:
+            self.tempOn = True
             element = None
             element = temp.find('val')
             if element is not None:
@@ -201,6 +220,7 @@ class xmlParser:
         sal = None
         sal = root.find('salinity')
         if sal is not None:
+            self.salOn = True
             element = None
             element = sal.find('val')
             if element is not None:
@@ -219,10 +239,11 @@ class xmlParser:
             self.salval = 35.5
             self.salfile = None
 
-        # Extract wave field structure information
+        # Extract global wave field parameters
         wavefield = None
-        wavefield = root.find('wavefield')
+        wavefield = root.find('waveglobal')
         if wavefield is not None:
+            self.waveOn = True
             element = None
             element = wavefield.find('base')
             if element is not None:
@@ -235,108 +256,113 @@ class xmlParser:
                 self.waveNb = int(element.text)
             else:
                 raise ValueError('The number of wave temporal events needs to be defined.')
-            tmpNb = self.waveNb
-            self.waveWind = numpy.empty(tmpNb,dtype=bool)
-            self.waveParam = numpy.empty(tmpNb,dtype=bool)
-            self.waveTime = numpy.empty((tmpNb,2))
-            self.wavePerc = numpy.empty(tmpNb)
-            self.waveWu = numpy.empty(tmpNb)
-            self.waveWd = numpy.empty(tmpNb)
-            self.waveDir = numpy.empty(tmpNb)
-            self.waveHs = numpy.empty(tmpNb)
-            self.wavePer = numpy.empty(tmpNb)
-            self.waveDs = numpy.empty(tmpNb)
-            id = 0
-            for event in wavefield.iter('wave'):
-                if id >= tmpNb:
-                    raise ValueError('The number of wave events does not match the number of defined events.')
-                element = None
-                element = event.find('start')
-                if element is not None:
-                    self.waveTime[id,0] = float(element.text)
-                else:
-                    raise ValueError('Wave event %d is missing start time argument.'%id)
-                element = None
-                element = event.find('end')
-                if element is not None:
-                    self.waveTime[id,1] = float(element.text)
-                else:
-                    raise ValueError('Wave event %d is missing end time argument.'%id)
-                if self.waveTime[id,0] >= self.waveTime[id,1]:
-                    raise ValueError('Wave event %d start and end time values are not properly defined.'%id)
-                element = None
-                element = event.find('perc')
-                if element is not None:
-                    self.wavePerc[id] = float(element.text)
-                    if self.wavePerc[id] < 0:
-                        raise ValueError('Wave event %d percentage cannot be negative.'%id)
-                else:
-                    raise ValueError('Wave event %d is missing percentage argument.'%id)
-                element = None
-                element = event.find('windv')
-                if element is not None:
-                    self.waveWind[id] = True
-                    self.waveParam[id] = False
-                    self.waveWu[id] = float(element.text)
-                    if self.waveWu[id] < 0:
-                        raise ValueError('Wave event %d wind velocity cannot be negative.'%id)
-                else:
-                    self.waveWind[id] = False
-                    self.waveWu[id] = 0.
-                element = None
-                element = event.find('hs')
-                if element is not None:
-                    self.waveWind[id] = False
-                    self.waveParam[id] = True
-                    self.waveHs[id] = float(element.text)
-                    if self.waveHs[id] < 0:
-                        raise ValueError('Wave event %d wave Hs cannot be negative.'%id)
-                else:
-                    self.waveParam[id] = False
-                    self.waveHs[id] = 0.
-                if self.waveWind[id] is False and self.waveParam[id] is False:
-                    raise ValueError('Wave event %d needs to be declared with either wind or wave parameters turned on.'%id)
-                if self.waveWind[id] and self.waveParam[id]:
-                    raise ValueError('Wave event %d needs to be declared with one of wind or wave parameters turned off.'%id)
-                element = None
-                element = event.find('per')
-                if element is not None:
-                    self.wavePer[id] = float(element.text)
-                    if self.wavePer[id] < 0:
-                        raise ValueError('Wave event %d wave Per cannot be negative.'%id)
-                else:
-                    self.wavePer[id] = 0.
-                element = None
-                element = event.find('ds')
-                if element is not None:
-                    self.waveDs[id] = float(element.text)
-                    if self.waveDs[id] < 0:
-                        raise ValueError('Wave event %d wave Ds cannot be negative.'%id)
-                else:
-                    self.waveDs[id] = 0.
-                element = None
-                element = event.find('dir')
-                if element is not None:
-                    if self.waveWind[id]:
-                        self.waveWd[id] = float(element.text)
-                        if self.waveWd[id] < 0:
-                            raise ValueError('Wave event %d wind direction needs to be set between 0 and 360.'%id)
-                    else:
-                        self.waveWd[id] = -1
-                    if self.waveParam[id]:
-                        self.waveDir[id] = float(element.text)
-                        if self.waveDir[id] < 0:
-                            raise ValueError('Wave event %d wave direction needs to be set between 0 and 360.'%id)
-                    else:
-                        self.waveDir[id] = -1
-                else:
-                    if self.waveWind[id]:
-                        raise ValueError('Wave event %d is missing wind direction argument.'%id)
-                    if self.waveParam[id]:
-                        raise ValueError('Wave event %d is missing wave direction argument.'%id)
-                id += 1
         else:
             self.waveNb = 0
+
+        # Extract wave field structure information
+        if self.waveNb > 0:
+            tmpNb = self.waveNb
+            self.waveWd = []
+            self.waveWu = []
+            self.wavePerc = []
+            self.waveTime = numpy.empty((tmpNb,2))
+            self.climNb = numpy.empty(tmpNb, dtype=int)
+            w = 0
+            for wavedata in root.iter('wave'):
+                if w >= tmpNb:
+                    raise ValueError('Wave event number above number defined in global wave structure.')
+                if wavedata is not None:
+                    element = None
+                    element = wavedata.find('start')
+                    if element is not None:
+                        self.waveTime[w,0] = float(element.text)
+                        if w > 0 and self.waveTime[w,0] != self.waveTime[w-1,1]:
+                            raise ValueError('The start time of the wave field %d needs to match the end time of previous wave data.'%w)
+                        if w == 0 and self.waveTime[w,0] != self.tStart:
+                            raise ValueError('The start time of the first wave field needs to match the simulation start time.')
+                    else:
+                        raise ValueError('Wave event %d is missing start time argument.'%w)
+                    element = None
+                    element = wavedata.find('end')
+                    if element is not None:
+                        self.waveTime[w,1] = float(element.text)
+                    else:
+                        raise ValueError('Wave event %d is missing end time argument.'%w)
+                    if self.waveTime[w,0] >= self.waveTime[w,1]:
+                        raise ValueError('Wave event %d start and end time values are not properly defined.'%w)
+                    element = None
+                    element = wavedata.find('climNb')
+                    if element is not None:
+                        self.climNb[w] = int(element.text)
+                    else:
+                        raise ValueError('Wave event %d is missing climatic wave number argument.'%w)
+
+                    if Decimal(self.waveTime[w,1]-self.waveTime[w,0]) % Decimal(self.tWave) != 0.:
+                        raise ValueError('Wave event %d duration need to be a multiple of the wave interval.'%w)
+
+                    listPerc = []
+                    listWu = []
+                    listWd = []
+                    id = 0
+                    sumPerc = 0.
+                    for clim in wavedata.iter('climate'):
+                        if id >= self.climNb[w]:
+                            raise ValueError('The number of climatic events does not match the number of defined climates.')
+                        element = None
+                        element = clim.find('perc')
+                        if element is not None:
+                            sumPerc += float(element.text)
+                            if sumPerc > 1:
+                                raise ValueError('Sum of wave event %d percentage is higher than 1.'%w)
+                            listPerc.append(float(element.text))
+                            if listPerc[id] < 0:
+                                raise ValueError('Wave event %d percentage cannot be negative.'%w)
+                        else:
+                            raise ValueError('Wave event %d is missing percentage argument.'%w)
+                        element = None
+                        element = clim.find('windv')
+                        if element is not None:
+                            listWu.append(float(element.text))
+                            if listWu[id] < 0:
+                                raise ValueError('Wave event %d wind velocity cannot be negative.'%w)
+                        else:
+                            raise ValueError('Wave event %d is missing wind velocity argument.'%w)
+                        element = None
+                        element = clim.find('dir')
+                        if element is not None:
+                            listWd.append(float(element.text))
+                            if listWd[id] < 0:
+                                raise ValueError('Wave event %d wind direction needs to be set between 0 and 360.'%w)
+                            if listWd[id] > 360:
+                                raise ValueError('Wave event %d wind direction needs to be set between 0 and 360.'%w)
+                        else:
+                            raise ValueError('Wave event %d is missing wind direction argument.'%w)
+                        id += 1
+                    w += 1
+                    self.wavePerc.append(listPerc)
+                    self.waveWu.append(listWu)
+                    self.waveWd.append(listWd)
+                else:
+                    raise ValueError('Wave event %d is missing.'%w)
+
+        # Construct a list of climatic events for swan model
+        self.wavelist = []
+        self.climlist = []
+        twsteps = numpy.arange(self.tStart,self.tEnd,self.tWave)
+        for t in range(len(twsteps)):
+            c = -1
+            # Find the wave field active during the time interval
+            for k in range(self.waveNb):
+                if self.waveTime[k,0] <= twsteps[t] and self.waveTime[k,1] >= twsteps[t]:
+                    c = k
+            # Extract the wave climate for the considered time interval
+            for p in range(self.climNb[c]):
+                self.wavelist.append(c)
+                self.climlist.append(p)
+
+        # Add a fake final wave field and climate
+        self.wavelist.append(self.wavelist[-1])
+        self.climlist.append(self.climlist[-1])
 
         # Get output directory
         out = None

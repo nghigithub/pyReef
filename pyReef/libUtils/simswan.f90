@@ -51,10 +51,6 @@ contains
       !--
       hindcast%wvel=30.0
       hindcast%wdir=140.0
-      hindcast%hs=0.0_8
-      hindcast%per=0.0_8
-      hindcast%dir=0.0_8
-      hindcast%dd=0.0_8
       !--
       outdir='GABcirc'
       !--

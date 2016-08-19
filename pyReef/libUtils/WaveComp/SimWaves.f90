@@ -127,11 +127,10 @@ contains
         write(iu,'(a15,1x,i1,1x,i4,1x,i1,1x,i4)')"GROUP 'gf' SUBG",0,stratal_x-1,0,stratal_y-1
         stg1="TABLE 'gf' IND '"
         call append_str2(stg1,swanout)
-        stg2="' XP YP DIR UBOT HS PER WLEN" ! UBOT"
+        stg2="' XP YP DIR UBOT HS PER WLEN"
         call append_str2(stg1,stg2)
         write(iu,*)trim(stg1)
-        write(iu,'(a5,2f12.3)') 'WIND ',forecast_param(5:6)
-!       write(iu,'(a9,4f12.3)')'INIT PAR ',forecast_param(1:4)
+        write(iu,'(a5,2f12.3)') 'WIND ',forecast_param(1:2)
         write(iu,'(a7)') 'COMPUTE'
         close(iu)
         open(iu,file=swanbot,status="replace",action="write",iostat=ios)
@@ -166,7 +165,7 @@ contains
 
       ! Define forcing waves parameters
       call import_bathymetry
-      hcast(1:6)=forecast_param(1:6)
+      hcast(1:2)=forecast_param(1:2)
       call swan_run(hcast)
       call exportSwanData
 

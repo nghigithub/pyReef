@@ -70,9 +70,10 @@ class raster2surf:
         self.regX = None
         self.regY = None
         self.regZ = None
+        self.res = None
 
-        # Partition
-        self.partIJ = None
+        # Partition IDs
+        self.partIDs = None
 
         # Surface creation and partition
         self._assign_surface_from_file()
@@ -198,6 +199,18 @@ class raster2surf:
         rank = comm.Get_rank()
         size = comm.Get_size()
 
+        self.partIDs = numpy.zeros((size,2),dtype=numpy.uint32)
+
+        npX = int( len(self.regX)/size )
+        for p in range(size):
+            if p == 0:
+                self.partIDs[p,0] = 0
+            else:
+                self.partIDs[p,0] = p*npX-1
+            self.partIDs[p,1] = p*npX+npX
+        self.partIDs[size-1,1] = len(self.regX)-1
+
+        '''
         if Xp == 1 and Yp == 1 and size > 1:
             n1,n2 = self._get_closest_factors(size)
             if len(self.regX) > len(self.regY) :
@@ -244,6 +257,7 @@ class raster2surf:
                 p = p+1
 
         self.partIJ = tmpIJ
+        '''
 
     def _assign_surface_from_file(self):
         """

@@ -17,13 +17,15 @@
 			<!-- Simulation start time [a] -->
 			<start>0.</start>
 			<!-- Simulation end time [a] -->
-			<end>1.</end>
+			<end>2.</end>
 			<!-- Time step [a] -->
 			<dt>1.</dt>
 			<!-- Wave interval [a] -->
-			<twave>1.</twave>
+			<twave>0.25</twave>
 			<!-- Display interval [a] -->
-			<display>1.</display>
+			<display>0.5</display>
+			<!-- Stratigraphic layer interval [a] -->
+			<laytime>0.5</laytime>
 	</time>
 
 	<!-- Sea-level structure
@@ -49,7 +51,7 @@
 	-->
 	<temperature>
 			<!-- Constant temperature value - (optional) -->
-			<val>30.</val>
+			<val>20.</val>
 		  <!-- Temperature curve - (optional). The file is made of 2 columns:
 							- first column: the time in year (increasing order)
 							- second column: the temperature value for the considered time [Celsius]
@@ -74,43 +76,111 @@
 		  <!--curve>data/sal.csv</curve-->
 	</salinity>
 
-	<!-- Wave field structure -->
-	<wavefield>
+	<!-- Wave global parameters structure -->
+	<waveglobal>
 			<!-- Maximum depth for wave influence (m)-->
 		  <base>50.0</base>
 			<!-- Number of wave climate temporal events. -->
-		  <events>2</events>
-			<!-- Wave definition based on wind parameters. -->
-	    <wave>
-				<!-- Wave start time [a] -->
-	      <start>0</start>
-				<!-- Wave end time [a] -->
-	      <end>1</end>
-				<!-- Percentage of time this event is active during the time interval -->
-	      <perc>0.3</perc>
-				<!-- Wind velocity at 10 metres elevation [m/s] -->
-	      <windv>5</windv>
-				<!-- Wind direction at 10 m elevation in degrees from the X-axis (horizontal) anti-clock wise -->
-	      <dir>140</dir>
-		  </wave>
-			<!-- Wave definition based on wave parameters. -->
-	    <wave>
-				<!-- Wave start time [a] -->
-	      <start>0</start>
-				<!-- Wave end time [a] -->
-	      <end>1</end>
-				<!-- Percentage of time this event is active during the time interval -->
-	      <perc>0.3</perc>
-				<!-- Significant wave height [m] -->
-	      <hs>2</hs>
-				<!-- Characteristic wave period of the energy spectrum [s] -->
-				<per>10.</per>
-				<!-- Peak wave direction in degrees from the X-axis (horizontal) anti-clock wise -->
-	      <dir>140</dir>
-				<!-- Coefficient of directional spreading -->
-				<ds>2.</ds>
-		  </wave>
-	</wavefield>
+		  <events>3</events>
+	</waveglobal>
+
+	<!-- Wave definition based on wave global structure.
+			 The wave field needs to be ordered by increasing start time.
+		 	 The time needs to be continuous between each field without overlaps. -->
+	<wave>
+			<!-- Wave start time [a] -->
+	    <start>0</start>
+			<!-- Wave end time [a] -->
+	    <end>1</end>
+			<!-- Wave climates number -->
+			<climNb>1</climNb>
+			<!-- Climatic wave definition based on wind parameters. -->
+			<climate>
+					<!-- Percentage of time this event is active during the time interval -->
+		    	<perc>0.6</perc>
+					<!-- Wind velocity at 10 metres elevation [m/s] -->
+		      <windv>5</windv>
+					<!-- Wind direction at 10 m elevation in degrees from the
+							 X-axis (horizontal) anti-clock wise -->
+		      <dir>30</dir>
+			</climate>
+	</wave>
+
+	<!-- Wave definition based on wave global structure.
+			 The wave field needs to be ordered by increasing start time.
+		 	 The time needs to be continuous between each field without overlaps. -->
+	<wave>
+			<!-- Wave start time [a] -->
+	    <start>1</start>
+			<!-- Wave end time [a] -->
+	    <end>1.25</end>
+			<!-- Wave climates number -->
+			<climNb>2</climNb>
+			<!-- Climatic wave definition based on wind parameters. -->
+			<climate>
+					<!-- Percentage of time this event is active during the time interval -->
+		    	<perc>0.3</perc>
+					<!-- Wind velocity at 10 metres elevation [m/s] -->
+		      <windv>4</windv>
+					<!-- Wind direction at 10 m elevation in degrees from the
+							 X-axis (horizontal) anti-clock wise -->
+		      <dir>140</dir>
+			</climate>
+			<!-- Climatic wave definition based on wind parameters. -->
+			<climate>
+					<!-- Percentage of time this event is active during the time interval -->
+		      <perc>0.5</perc>
+					<!-- Wind velocity at 10 metres elevation [m/s] -->
+		      <windv>8</windv>
+					<!-- Wind direction at 10 m elevation in degrees from the
+					     X-axis (horizontal) anti-clock wise -->
+		      <dir>40</dir>
+			</climate>
+	</wave>
+
+	<!-- Wave definition based on wave global structure.
+			 The wave field needs to be ordered by increasing start time.
+		 	 The time needs to be continuous between each field without overlaps. -->
+	<wave>
+			<!-- Wave start time [a] -->
+	    <start>1.25</start>
+			<!-- Wave end time [a] -->
+	    <end>2</end>
+			<!-- Wave climates number -->
+			<climNb>3</climNb>
+			<!-- Climatic wave definition based on wind parameters. -->
+			<climate>
+					<!-- Percentage of time this event is active during the time interval -->
+		    	<perc>0.1</perc>
+					<!-- Wind velocity at 10 metres elevation [m/s] -->
+		      <windv>1</windv>
+					<!-- Wind direction at 10 m elevation in degrees from the
+							 X-axis (horizontal) anti-clock wise -->
+		      <dir>10</dir>
+			</climate>
+			<!-- Climatic wave definition based on wind parameters. -->
+			<climate>
+					<!-- Percentage of time this event is active during the time interval -->
+		      <perc>0.5</perc>
+					<!-- Wind velocity at 10 metres elevation [m/s] -->
+		      <windv>2.3</windv>
+					<!-- Wind direction at 10 m elevation in degrees from the
+					     X-axis (horizontal) anti-clock wise -->
+		      <dir>4</dir>
+			</climate>
+			<!-- Climatic wave definition based on wind parameters. -->
+			<climate>
+					<!-- Percentage of time this event is active during the time interval -->
+		      <perc>0.25</perc>
+					<!-- Wind velocity at 10 metres elevation [m/s] -->
+		      <windv>1.3</windv>
+					<!-- Wind direction at 10 m elevation in degrees from the
+					     X-axis (horizontal) anti-clock wise -->
+		      <dir>2.5</dir>
+			</climate>
+	</wave>
+
+
 
 	<!-- Output folder path -->
 	<outfolder>out</outfolder>
