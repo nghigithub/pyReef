@@ -55,8 +55,6 @@ module miscdata
   character(len=128)::swaninfo
   character(len=128)::swanbot
   character(len=128)::swanout
-  character(len=128)::outdir
-  character(len=128)::outdir1
   character(len=128)::h5data
 
   ! MPI integer type communicator
@@ -79,33 +77,6 @@ module miscdata
 contains
 
   ! ============================================================================
-  subroutine term_command(cmds)
-
-    logical(4)::result
-    character(len=128)::cmds
-    result=.false.
-    ! INTEL FORTRAN COMPILER
-    !result=systemqq(cmds)
-    ! GNU FORTRAN COMPILER
-    call system(cmds)
-
-    return
-
-  end subroutine term_command
-  ! ============================================================================
-  subroutine append_str2(stg1,stg2)
-
-    integer::l1,l2
-    character(len=128)::stg1,stg2
-
-    l1=len_trim(stg1)
-    l2=len_trim(stg2)
-    stg1(l1+1:l1+l2)=stg2
-
-    return
-
-  end subroutine append_str2
-  ! ============================================================================
   subroutine append_str(stg1,stg2)
 
     integer::l1,l2
@@ -114,7 +85,6 @@ contains
     l1=len_trim(stg1)
     l2=len_trim(stg2)
     stg1(l1+1:l1+l2)=stg2
-    call noblnk(stg1)
 
     return
 
@@ -165,127 +135,6 @@ contains
 
   end subroutine noblnk
   ! ============================================================================
-  subroutine addpath(fname)
-
-    integer:: pathlen,flen
-    character(len=128)::fname,dname,dummy
-
-    ! for files to be read,they'll be in the session path
-    dname=' '
-    call noblnk(outdir)
-    pathlen=len_trim(outdir)
-    dname(1:pathlen)=outdir
-    dname(pathlen+1:pathlen+1)='/'
-    pathlen=pathlen+1
-    call noblnk(fname)
-    flen=len_trim(fname)
-    dummy=' '
-    dummy=fname
-    fname=' '
-    fname(1:pathlen)=dname(1:pathlen)
-    fname(pathlen+1:pathlen+flen)=dummy(1:flen)
-
-    return
-
-  end subroutine addpath
-  ! ============================================================================
-  subroutine addpath1(fname)
-
-    integer:: pathlen,flen
-    character(len=128)::fname,dname,dummy
-
-    ! for files to be read,they'll be in the session path
-    dname=' '
-    call noblnk(outdir1)
-    pathlen=len_trim(outdir1)
-    dname(1:pathlen)=outdir1
-    dname(pathlen+1:pathlen+1)='/'
-    pathlen=pathlen+1
-    call noblnk(fname)
-    flen=len_trim(fname)
-    dummy=' '
-    dummy=fname
-    fname=' '
-    fname(1:pathlen)=dname(1:pathlen)
-    fname(pathlen+1:pathlen+flen)=dummy(1:flen)
-
-    return
-
-  end subroutine addpath1
-  ! ============================================================================
 
 end module miscdata
 ! ============================================================================
-module wavegrid
-
-  use mpidata
-  use classdata
-  use miscdata
-
-  implicit none
-
-contains
-
-  ! =====================================================================================
-  subroutine create_swan_data
-
-    logical::found
-    integer::i,j,l1,scn
-    character(len=128)::command,stg
-    real::x,y,z !,pi
-
-    ! SPM grid extent
-    stratal_x=sp_n
-    stratal_y=sp_m
-
-    ! Get maximum bathymetry value
-    if(allocated(sp_topo)) deallocate(sp_topo)
-    allocate(sp_topo(sp_m,sp_n))
-    open(unit=17,file=trim(xyzfile))
-    rewind(17)
-    do i=1,sp_m
-      do j=1,sp_n
-        read(17,*)l1,x,y,z
-        sp_topo(i,j)=z+50-sea_level
-      enddo
-    enddo
-    close(17)
-
-    ! Allocate forecasts
-    !pi=4.*atan(1.)
-    forecast_param(1)=hindcast%wvel
-    forecast_param(2)=hindcast%wdir
-    !forecast_param(7)=forecast_param(5)*sin(forecast_param(6)*180./pi)
-    !forecast_param(8)=forecast_param(5)*cos(forecast_param(6)* 180./pi)
-
-    ! Create the output directory
-    outdir1=''
-    if(iam==0)then
-        command=' '
-        command(1:6)='rm -r '
-        l1=len_trim(outdir)
-        command(7:l1+7)=outdir
-        call term_command(command)
-        command=' '
-        command(1:6)='mkdir '
-        l1=len_trim(outdir)
-        command(7:l1+7)=outdir
-        call term_command(command)
-        command(l1+7:l1+7)='/'
-        stg=''
-        stg(1:l1+7)=command(1:l1+7)
-        stg(l1+8:l1+13)='swan'
-        call term_command(stg)
-        outdir1(1:l1)=outdir(1:l1)
-        outdir1(l1+1:l1+7)='/swan'
-        call noblnk(outdir1)
-    endif
-    call mpi_bcast(outdir,128,mpi_character,0,ocean_comm_world,ierr)
-    call mpi_bcast(outdir1,128,mpi_character,0,ocean_comm_world,ierr)
-
-    return
-
-  end subroutine create_swan_data
-  ! =====================================================================================
-
-end module wavegrid

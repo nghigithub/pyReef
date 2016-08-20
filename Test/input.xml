@@ -99,10 +99,10 @@
 					<!-- Percentage of time this event is active during the time interval -->
 		    	<perc>0.6</perc>
 					<!-- Wind velocity at 10 metres elevation [m/s] -->
-		      <windv>5</windv>
+		      <windv>10</windv>
 					<!-- Wind direction at 10 m elevation in degrees from the
 							 X-axis (horizontal) anti-clock wise -->
-		      <dir>30</dir>
+		      <dir>270</dir>
 			</climate>
 	</wave>
 
@@ -121,10 +121,10 @@
 					<!-- Percentage of time this event is active during the time interval -->
 		    	<perc>0.3</perc>
 					<!-- Wind velocity at 10 metres elevation [m/s] -->
-		      <windv>4</windv>
+		      <windv>40</windv>
 					<!-- Wind direction at 10 m elevation in degrees from the
 							 X-axis (horizontal) anti-clock wise -->
-		      <dir>140</dir>
+		      <dir>180</dir>
 			</climate>
 			<!-- Climatic wave definition based on wind parameters. -->
 			<climate>
@@ -134,7 +134,7 @@
 		      <windv>8</windv>
 					<!-- Wind direction at 10 m elevation in degrees from the
 					     X-axis (horizontal) anti-clock wise -->
-		      <dir>40</dir>
+		      <dir>180</dir>
 			</climate>
 	</wave>
 

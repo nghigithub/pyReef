@@ -49,11 +49,16 @@ class outputGrid:
         else:
             self.i2 = surf.partIDs[self.rank,1]+1
 
-        x, y = numpy.meshgrid(surf.regY[self.j1:self.j2],surf.regX[self.i1:self.i2])
+        self.nbPts = (self.j2-self.j1)*(self.i2-self.i1)
+        self.x = numpy.zeros(self.nbPts)
+        self.y = numpy.zeros(self.nbPts)
+        p = 0
+        for j in range(self.j1,self.j2):
+            for i in range(self.i1,self.i2):
+                self.x[p] = surf.regX[i]
+                self.y[p] = surf.regY[j]
+                p += 1
 
-        self.x = numpy.ravel(x,order='F')
-        self.y = numpy.ravel(y,order='F')
-        self.nbPts = len(self.x)
         self.folder = folder
         self.h5file = h5file
         self.xmffile = xmffile
@@ -72,7 +77,7 @@ class outputGrid:
 
         return
 
-    def write_hdf5_grid(self, elev, time, outstep):
+    def write_hdf5_grid(self, elev, force, time, outstep):
         """
         This function writes for each processor the HDF5 file containing sub-surface information.
 
@@ -82,6 +87,9 @@ class outputGrid:
         variable : elev
             Elevation at current time step.
 
+        variable: force
+            Forcings conditions.
+
         variable : time
             Simulation current time step.
 
@@ -89,17 +97,38 @@ class outputGrid:
             Output time step.
         """
 
+        if force.wavU is not None:
+            waveOn = True
+        else:
+            waveOn = False
+
         sh5file = self.folder+'/'+self.h5file+str(outstep)+'.p'+str(self.rank)+'.hdf5'
         with h5py.File(sh5file, "w") as f:
 
             # Write node elevations
             f.create_dataset('z',shape=(self.nbPts,1), dtype='float32', compression='gzip')
             f["z"][:,0] = numpy.ravel(elev[self.i1:self.i2,self.j1:self.j2],order='F')
+            if waveOn:
+                # Write wave velocity along X
+                f.create_dataset('wu',shape=(self.nbPts,1), dtype='float32', compression='gzip')
+                f["wu"][:,0] = numpy.ravel(force.wavU[self.i1:self.i2,self.j1:self.j2],order='F')
+                # Write wave velocity along Y
+                f.create_dataset('wv',shape=(self.nbPts,1), dtype='float32', compression='gzip')
+                f["wv"][:,0] = numpy.ravel(force.wavU[self.i1:self.i2,self.j1:self.j2],order='F')
+                # Write wave velocity along Y
+                #f.create_dataset('wh',shape=(self.nbPts,1), dtype='float32', compression='gzip')
+                #f["wh"][:,0] = numpy.ravel(force.wavH[self.i1:self.i2,self.j1:self.j2],order='F')
+                # Write wave velocity along Y
+                #f.create_dataset('wp',shape=(self.nbPts,1), dtype='float32', compression='gzip')
+                #f["wp"][:,0] = numpy.ravel(force.wavP[self.i1:self.i2,self.j1:self.j2],order='F')
+                # Write wave velocity along Y
+                #f.create_dataset('wl',shape=(self.nbPts,1), dtype='float32', compression='gzip')
+                #f["wl"][:,0] = numpy.ravel(force.wavL[self.i1:self.i2,self.j1:self.j2],order='F')
 
         self.comm.Barrier()
 
         if self.rank == 0:
-            self._write_xmf(time, outstep)
+            self._write_xmf(time, outstep, force.sealevel, waveOn)
 
         return
 
@@ -131,7 +160,7 @@ class outputGrid:
 
         return
 
-    def _write_xmf(self, time, step):
+    def _write_xmf(self, time, step, sl, waveOn):
          """
          This function writes the XmF file which is calling each HFD5 file.
 
@@ -143,6 +172,12 @@ class outputGrid:
 
          variable: step
              Output visualisation step.
+
+         variable: sl
+            Sealevel elevation.
+
+         variable: waveOn
+            Wave data needs to be outputed.
          """
 
          xmf_file = self.folder+'/'+self.xmffile+str(step)+'.xmf'
@@ -171,6 +206,33 @@ class outputGrid:
              f.write('         <Attribute Type="Scalar" Center="Node" Name="Elevation">\n')
              f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
              f.write('>%s:/z</DataItem>\n'%(datfile))
+             f.write('         </Attribute>\n')
+             if waveOn:
+                 f.write('         <Attribute Type="Scalar" Center="Node" Name="WaveU">\n')
+                 f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
+                 f.write('>%s:/wu</DataItem>\n'%(datfile))
+                 f.write('         </Attribute>\n')
+                 f.write('         <Attribute Type="Scalar" Center="Node" Name="WaveV">\n')
+                 f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
+                 f.write('>%s:/wv</DataItem>\n'%(datfile))
+                 f.write('         </Attribute>\n')
+                #  f.write('         <Attribute Type="Scalar" Center="Node" Name="WaveH">\n')
+                #  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
+                #  f.write('>%s:/wh</DataItem>\n'%(datfile))
+                #  f.write('         </Attribute>\n')
+                #  f.write('         <Attribute Type="Scalar" Center="Node" Name="WaveP">\n')
+                #  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
+                #  f.write('>%s:/wp</DataItem>\n'%(datfile))
+                #  f.write('         </Attribute>\n')
+                #  f.write('         <Attribute Type="Scalar" Center="Node" Name="WaveL">\n')
+                #  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
+                #  f.write('>%s:/wl</DataItem>\n'%(datfile))
+                #  f.write('         </Attribute>\n')
+             f.write('         <Attribute Type="Scalar" Center="Node" Name="Sealevel">\n')
+             f.write('          <DataItem ItemType="Function" Function="$0 * 0.00000000001 + %f" Dimensions="%d %d 1">\n'%(sl,self.nx[p],self.ny))
+             f.write('           <DataItem Format="HDF" NumberType="Float" Precision="4" ')
+             f.write('Dimensions="%d %d 1">%s:/z</DataItem>\n'%(self.nx[p],self.ny,datfile))
+             f.write('          </DataItem>\n')
              f.write('         </Attribute>\n')
              f.write('      </Grid>\n')
 

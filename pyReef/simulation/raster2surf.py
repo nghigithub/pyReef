@@ -109,6 +109,7 @@ class raster2surf:
             regZ = numpy.reshape(demZ,(len(regX),len(regY)),order='F')
             interpolate_fct = interpolate.interp2d(regY,regX,regZ,kind='cubic')
 
+
         minX -= self.res
         maxX += self.res
         minY -= self.res

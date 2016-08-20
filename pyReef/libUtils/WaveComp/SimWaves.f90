@@ -21,6 +21,7 @@ module SimWaves
 
     implicit none
 
+    real::pi
     real::hs,period
     real,parameter::kappa=0.4
     real,dimension(:,:),allocatable::uCur,dCur
@@ -29,7 +30,7 @@ module SimWaves
     real,dimension(:),allocatable::glob_Uw,glob_Dw,glob_Hs,glob_Per,glob_Wlen
 
     !  Decomposition specification for SWAN Model
-    type(SGFM_WADecomp),dimension(:),allocatable::wdcp
+    type(REEF_WADecomp),dimension(:),allocatable::wdcp
 
     real,dimension(6)::hcast
 
@@ -87,18 +88,6 @@ contains
       character(len=128)::stg1,stg2
 
       ! Create the input for SWAN simulation
-      swaninput='swan.swn'
-      call noblnk(swaninput)
-      call addpath1(swaninput)
-      swaninfo='swanInfo'
-      call noblnk(swaninfo)
-      call addpath1(swaninfo)
-      swanbot='swan.bot'
-      call noblnk(swanbot)
-      call addpath1(swanbot)
-      swanout='swan.csv'
-      call noblnk(swanout)
-      call addpath1(swanout)
       if(iam==0)then
         iu=342
         mx_x=stratal_dx*(stratal_x-1)
@@ -110,9 +99,9 @@ contains
         write(iu,103) "INPGRID BOTTOM REG",stratal_xo,stratal_yo,0,1,1,mx_x,mx_y,'EXC -999999.000'
 103     format(a18,1x,f12.3,1x,f12.3,1x,i1,1x,i1,1x,i1,1x,f12.3,1x,f12.3,1x,a15)
         stg1="READINP BOTTOM 1 '"
-        call append_str2(stg1,swanbot)
+        call append_str(stg1,swanbot)
         stg2="' 3 0 FREE"
-        call append_str2(stg1,stg2)
+        call append_str(stg1,stg2)
         write(iu,*)trim(stg1)
         write(iu,'(a42)') "BOUNd SHAPESPEC JONSWAP 3.3 PEAK DSPR DEGR"
         write(iu,'(a7)') 'DIFFRAC'
@@ -126,9 +115,9 @@ contains
         !write(iu,'(a10)') 'OFF BNDCHK'
         write(iu,'(a15,1x,i1,1x,i4,1x,i1,1x,i4)')"GROUP 'gf' SUBG",0,stratal_x-1,0,stratal_y-1
         stg1="TABLE 'gf' IND '"
-        call append_str2(stg1,swanout)
+        call append_str(stg1,swanout)
         stg2="' XP YP DIR UBOT HS PER WLEN"
-        call append_str2(stg1,stg2)
+        call append_str(stg1,stg2)
         write(iu,*)trim(stg1)
         write(iu,'(a5,2f12.3)') 'WIND ',forecast_param(1:2)
         write(iu,'(a7)') 'COMPUTE'
@@ -157,7 +146,7 @@ contains
         jj=0
         do j=wdcp(ks)%minY_id,wdcp(ks)%maxY_id
           jj=jj+1
-          bathyfield(ii,jj)=sea_level-sp_topo(j,i)
+          bathyfield(ii,jj)=-sp_topo(j,i)
           if(bathyfield(ii,jj)<0.) bathyfield(ii,jj)=-999999.0
           if(bathyfield(ii,jj)>wave_base) bathyfield(ii,jj)=-999999.0
         enddo
@@ -165,6 +154,7 @@ contains
 
       ! Define forcing waves parameters
       call import_bathymetry
+
       hcast(1:2)=forecast_param(1:2)
       call swan_run(hcast)
       call exportSwanData

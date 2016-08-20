@@ -4,6 +4,8 @@ import mpi4py.MPI as mpi
 
 from pyReef import (forceSim, outputGrid, buildMesh, xmlParser)
 
+from pyReef.libUtils  import simswan as swan
+
 # profiling support
 import cProfile
 import os
@@ -21,12 +23,14 @@ class Model(object):
 
         # simulation state
         self.tNow = 0.
+        self.waveID = 0
         self.outputStep = 0
         self.simStarted = False
 
         self._rank = mpi.COMM_WORLD.rank
         self._size = mpi.COMM_WORLD.size
         self._comm = mpi.COMM_WORLD
+        self.fcomm = mpi.COMM_WORLD.py2f()
 
     def load_xml(self, filename, verbose=False):
         """
@@ -81,8 +85,49 @@ class Model(object):
         if self.input.salOn:
             self.force.getSalinity(self.tNow)
 
+        # Initialise SWAN
+        if self.input.waveOn:
+            wl = self.input.wavelist[self.waveID]
+            cl = self.input.climlist[self.waveID]
+            tw = time.clock()
+            swan.model.init(self.fcomm, self.input.swanFile, self.input.swanInfo,
+                        self.input.swanBot, self.input.swanOut, self.pyGrid.regZ,
+                        self.input.waveWu[wl][cl], self.input.waveWd[wl][cl],
+                        self.pyGrid.res, self.input.waveBase,
+                        self.force.sealevel)
+            if self._rank == 0:
+                print 'Swan model initialisation took %0.02f seconds' %(time.clock()-tw)
+
+            # Define next wave regime
+            tw = time.clock()
+            self.waveID += 1
+            wl = self.input.wavelist[self.waveID]
+            cl = self.input.climlist[self.waveID]
+            self.force.wavU, self.force.wavV, self.force.wavH, self.force.wavP, \
+                self.force.wavL = swan.model.run(self.fcomm, self.pyGrid.regZ,
+                                                 self.input.waveWu[wl][cl],
+                                                 self.input.waveWd[wl][cl],
+                                                 self.force.sealevel)
+            if self._rank == 0:
+                print 'Swan model run took %0.02f seconds' %(time.clock()-tw)
+
+            # # Define next wave regime
+            # tw = time.clock()
+            # self.waveID += 1
+            # wl = self.input.wavelist[self.waveID]
+            # cl = self.input.climlist[self.waveID]
+            # wavU, wavV, wavH, wavP, wavL = swan.model.run(self.fcomm, self.pyGrid.regZ,
+            #                                                self.input.waveWu[wl][cl],
+            #                                                self.input.waveWd[wl][cl],
+            #                                                self.force.sealevel)
+            # if self._rank == 0:
+            #      print 'Swan model run took %0.02f seconds' %(time.clock()-tw)
+
+
+            swan.model.final(self.fcomm)
+
         # Output surface
-        outSurf.write_hdf5_grid(self.pyGrid.regZ, self.tNow, self.outputStep)
+        outSurf.write_hdf5_grid(self.pyGrid.regZ, self.force, self.tNow, self.outputStep)
 
     def run_to_time(self, tEnd, profile=False, verbose=False):
         """

@@ -77,6 +77,11 @@ class xmlParser:
         self.xmffile = 'xmf/surf.time'
         self.xdmffile = 'surf.series.xdmf'
 
+        self.swanFile = None
+        self.swanInfo = None
+        self.swanBot = None
+        self.swanOut = None
+
         self._get_XmL_Data()
 
         return
@@ -379,6 +384,16 @@ class xmlParser:
             os.makedirs(self.outDir)
             os.makedirs(self.outDir+'/h5')
             os.makedirs(self.outDir+'/xmf')
+            if self.waveOn:
+                os.makedirs(self.outDir+'/swan')
+
             shutil.copy(self.inputfile,self.outDir)
+
+        # Create swan model repository and files
+        if self.waveOn:
+            self.swanFile = numpy.array(self.outDir+'/swan/swan.swn')
+            self.swanInfo = numpy.array(self.outDir+'/swan/swanInfo.swn')
+            self.swanBot = numpy.array(self.outDir+'/swan/swan.bot')
+            self.swanOut = numpy.array(self.outDir+'/swan/swan.csv')
 
         return

@@ -77,11 +77,16 @@ class forceSim:
         self.waveWu = waveWu
         self.waveWd = waveWd
 
-        self.wNb = 0
         self.wPerc = None
         self.wDt = None
         self.wWindU = None
         self.wWindA = None
+
+        self.wavU = None
+        self.wavV = None
+        self.wavH = None
+        self.wavP = None
+        self.wavL = None
 
         self.next_display = None
         self.next_layer = None

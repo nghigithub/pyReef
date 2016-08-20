@@ -12,14 +12,14 @@ module swan_coupler_parallel
 
     ! SWAN model decomposition for SGFM framework
     integer :: Xsdiv, Ysdiv
-    type SGFM_WADecomp
+    type REEF_WADecomp
         integer :: X_nb
         integer :: Y_nb
         integer :: minX_id
         integer :: minY_id
         integer :: maxX_id
         integer :: maxY_id
-    end type SGFM_WADecomp
+    end type REEF_WADecomp
 
 end module swan_coupler_parallel
 !=======================================================================
@@ -150,7 +150,7 @@ contains
         integer :: minX, maxX, minY, maxY
         integer, dimension( nbPet ) :: minXT, maxXT, minYT, maxYT, nbXT, nbYT
 
-        type( SGFM_WADecomp ), dimension( nbPet ) :: SWANdecomp
+        type( REEF_WADecomp ), dimension( nbPet ) :: SWANdecomp
 
         ldx = 0
         ldy = 0

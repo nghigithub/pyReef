@@ -9,10 +9,9 @@
 
 ! Main entry to SWAN wave modelling code.
 
-module simswan
+module model
 
   use mpidata
-  use wavegrid
   use SimWaves
   use classdata
   use miscdata
@@ -21,15 +20,62 @@ module simswan
 
 contains
 
-  subroutine run(comm)
+  subroutine init(pyComm,pysFile,pysInfo,pysBot,pysOut,pyZ,pyWu, &
+                 pyWd,pyDx,pyWbase,pySL,pyNx,pyNy)
 
-      real(kind=8)::time_st,time_ed
-      integer :: comm
+      integer,intent(in) :: pyNx
+      integer,intent(in) :: pyNy
+      integer,intent(in) :: pyComm
+      real,intent(in) :: pyWu
+      real,intent(in) :: pyWd
+      real,intent(in) :: pyDx
+      real,intent(in) :: pyWbase
+      real,intent(in) :: pySL
+      real,dimension(pyNx,pyNy),intent(in) :: pyZ
+      character(len=*),intent(in) :: pysFile
+      character(len=*),intent(in) :: pysInfo
+      character(len=*),intent(in) :: pysBot
+      character(len=*),intent(in) :: pysOut
+
+      integer :: comm,i,j,pathlen
 
       ! start up MPI
+      comm=pyComm
       call mpi_comm_size(comm,nprocs,ierr)
       call mpi_comm_rank(comm,iam,ierr)
       ocean_comm_world=comm
+
+      pi=4.*atan(1.)
+
+      ! Initialise dataset
+      sp_n=pyNx
+      sp_m=pyNy
+      stratal_dx=pyDx
+      wave_base=pyWbase
+      hindcast%wvel=pyWu
+      hindcast%wdir=pyWd
+      sea_level = pySL
+
+      ! if(allocated(wavU)) deallocate(wavU)
+      ! allocate(wavU(pyNx,pyNy))
+      ! if(allocated(wavV)) deallocate(wavV)
+      ! allocate(wavV(pyNx,pyNy))
+
+      if(allocated(sp_topo)) deallocate(sp_topo)
+      allocate(sp_topo(sp_m,sp_n))
+      do i=1,sp_m
+         do j=1,sp_n
+           sp_topo(i,j)=pyZ(j,i)-pySL
+         enddo
+      enddo
+
+      ! SPM grid extent
+      stratal_x=sp_n
+      stratal_y=sp_m
+
+      ! Define forecasts
+      forecast_param(1)=hindcast%wvel
+      forecast_param(2)=hindcast%wdir
 
       int_type=mpi_integer
       real_type=mpi_real
@@ -39,42 +85,98 @@ contains
       min_type=mpi_min
       sum_type=mpi_sum
 
-      time_st=mpi_wtime( )
-
-      !--
-      ! Required data
-      xyzfile='data/gab_topo.nodes'
-      sp_n = 250
-      sp_m = 249
-      stratal_dx = 3000
-      wave_base = 100.0
-      !--
-      hindcast%wvel=30.0
-      hindcast%wdir=140.0
-      !--
-      outdir='GABcirc'
-      !--
+      pathlen=len_trim(pysFile)
+      swaninput(1:pathlen) = trim(pysFile(1:pathlen))
+      swaninfo = ''
+      pathlen=len_trim(pysInfo)
+      swaninfo(1:pathlen) = trim(pysInfo(1:pathlen))
+      pathlen=len_trim(pysBot)
+      swanbot = ''
+      swanbot(1:pathlen) = trim(pysBot(1:pathlen))
+      pathlen=len_trim(pysOut)
+      swanout = ''
+      swanout(1:pathlen) = trim(pysOut(1:pathlen))
 
       ! Initialisation step for several calls
       ! Initialise swan model dataset and directory
-      call create_swan_data
       call build_swan_model
 
-      ! Compute the wave fields for each conditions:
-      ! needs to update forecast based on next forecast_param for next run
-      ! needs to update topo sp_topo sea_level
+      return
+
+  end subroutine init
+
+  subroutine run(pyComm, pyZ, pyWu, pyWd, pySL, pyWavU, pyWavV, &
+                 pyWavH, pyWavP, pyWavL, pyNx, pyNy)
+
+      integer,intent(in) :: pyNx
+      integer,intent(in) :: pyNy
+      integer,intent(in) :: pyComm
+      real,intent(in) :: pyWu
+      real,intent(in) :: pyWd
+      real,intent(in) :: pySL
+      real,dimension(pyNx,pyNy),intent(in) :: pyZ
+      real,dimension(pyNx,pyNy),intent(out) :: pyWavU
+      real,dimension(pyNx,pyNy),intent(out) :: pyWavV
+      real,dimension(pyNx,pyNy),intent(out) :: pyWavH
+      real,dimension(pyNx,pyNy),intent(out) :: pyWavP
+      real,dimension(pyNx,pyNy),intent(out) :: pyWavL
+
+      integer :: i,j,n,p
+
+      ocean_comm_world=pyComm
+
+      ! Update topography
+      do i=1,sp_m
+         do j=1,sp_n
+           sp_topo(i,j)=pyZ(j,i)-pySL
+         enddo
+      enddo
+
+      ! Update forecast based on next wave regime
+      forecast_param(1) = pyWu
+      forecast_param(2) = pyWd
+
+      ! Run Swan model
       call run_waves
 
-      time_ed=mpi_wtime( )
-      if(iam==0) print*,'Time elapse:',time_ed-time_st
+      n=1
+      do i=1,sp_m
+        p=i
+        do j=1,sp_n
+          if(glob_Uw(p)>0.0)then
+            pyWavU(j,i)=real(glob_Uw(p)*cos(glob_Dw(p)*pi/180.))
+            pyWavV(j,i)=real(glob_Uw(p)*sin(glob_Dw(p)*pi/180.))
+            pyWavH(j,i)=glob_Hs(p)
+            pyWavP(j,i)=glob_Per(p)
+            pyWavL(j,i)=glob_Wlen(p)
+          else
+            pyWavU(j,i)=0.0
+            pyWavV(j,i)=0.0
+          endif
+          p=p+sp_m
+          n=n+1
+        enddo
+      enddo
 
-
-      ! Finalisation
-      ! Finalisation
-      call wave_final
+      !       Vparamw(p+3)=glob_Hs(n)
+      !       Vparamw(p+4)=glob_Per(n)
+      !       Vparamw(p+5)=glob_Wlen(n)
 
       return
 
   end subroutine run
 
-end module simswan
+  subroutine final(pyComm)
+
+      integer,intent(in) :: pyComm
+
+      ocean_comm_world=pyComm
+
+      ! Finalisation
+      call wave_final
+
+      return
+
+  end subroutine final
+
+end module model
