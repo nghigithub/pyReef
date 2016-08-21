@@ -67,6 +67,8 @@ class raster2surf:
         self.nx = None
         self.ny = None
         self.res = None
+        self.demX = None
+        self.demY = None
         self.regX = None
         self.regY = None
         self.regZ = None
@@ -95,6 +97,8 @@ class raster2surf:
         maxX = demX.max()
         minY = demY.min()
         maxY = demY.max()
+        self.demX = demX
+        self.demY = demY
 
         # Defines pyReef surface resolution
         self.res = demRes*self.resRecFactor

@@ -105,8 +105,9 @@ contains
 
   end subroutine init
 
-  subroutine run(pyComm, pyZ, pyWu, pyWd, pySL, pyWavU, pyWavV, &
-                 pyWavH, pyWavP, pyWavL, pyNx, pyNy)
+  ! subroutine run(pyComm, pyZ, pyWu, pyWd, pySL, pyWavU, pyWavV, &
+  !                  pyWavH, pyWavP, pyWavL, pyNx, pyNy)
+  subroutine run(pyComm, pyZ, pyWu, pyWd, pySL, pyWavU, pyWavV, pyNx, pyNy)
 
       integer,intent(in) :: pyNx
       integer,intent(in) :: pyNy
@@ -117,9 +118,9 @@ contains
       real,dimension(pyNx,pyNy),intent(in) :: pyZ
       real,dimension(pyNx,pyNy),intent(out) :: pyWavU
       real,dimension(pyNx,pyNy),intent(out) :: pyWavV
-      real,dimension(pyNx,pyNy),intent(out) :: pyWavH
-      real,dimension(pyNx,pyNy),intent(out) :: pyWavP
-      real,dimension(pyNx,pyNy),intent(out) :: pyWavL
+      ! real,dimension(pyNx,pyNy),intent(out) :: pyWavH
+      ! real,dimension(pyNx,pyNy),intent(out) :: pyWavP
+      ! real,dimension(pyNx,pyNy),intent(out) :: pyWavL
 
       integer :: i,j,n,p
 
@@ -146,21 +147,20 @@ contains
           if(glob_Uw(p)>0.0)then
             pyWavU(j,i)=real(glob_Uw(p)*cos(glob_Dw(p)*pi/180.))
             pyWavV(j,i)=real(glob_Uw(p)*sin(glob_Dw(p)*pi/180.))
-            pyWavH(j,i)=glob_Hs(p)
-            pyWavP(j,i)=glob_Per(p)
-            pyWavL(j,i)=glob_Wlen(p)
+            !pyWavH(j,i)=glob_Hs(p)
+            !pyWavP(j,i)=glob_Per(p)
+            !pyWavL(j,i)=glob_Wlen(p)
           else
             pyWavU(j,i)=0.0
             pyWavV(j,i)=0.0
+            !pyWavH(j,i)=0.0
+            !pyWavP(j,i)=0.0
+            !pyWavL(j,i)=0.0
           endif
           p=p+sp_m
           n=n+1
         enddo
       enddo
-
-      !       Vparamw(p+3)=glob_Hs(n)
-      !       Vparamw(p+4)=glob_Per(n)
-      !       Vparamw(p+5)=glob_Wlen(n)
 
       return
 

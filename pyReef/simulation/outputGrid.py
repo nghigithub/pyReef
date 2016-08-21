@@ -97,24 +97,19 @@ class outputGrid:
             Output time step.
         """
 
-        if force.wavU is not None:
-            waveOn = True
-        else:
-            waveOn = False
-
         sh5file = self.folder+'/'+self.h5file+str(outstep)+'.p'+str(self.rank)+'.hdf5'
         with h5py.File(sh5file, "w") as f:
 
             # Write node elevations
             f.create_dataset('z',shape=(self.nbPts,1), dtype='float32', compression='gzip')
             f["z"][:,0] = numpy.ravel(elev[self.i1:self.i2,self.j1:self.j2],order='F')
-            if waveOn:
+            if force.wclim > 0:
                 # Write wave velocity along X
                 f.create_dataset('wu',shape=(self.nbPts,1), dtype='float32', compression='gzip')
-                f["wu"][:,0] = numpy.ravel(force.wavU[self.i1:self.i2,self.j1:self.j2],order='F')
+                f["wu"][:,0] = numpy.ravel(force.wavU[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
                 # Write wave velocity along Y
                 f.create_dataset('wv',shape=(self.nbPts,1), dtype='float32', compression='gzip')
-                f["wv"][:,0] = numpy.ravel(force.wavU[self.i1:self.i2,self.j1:self.j2],order='F')
+                f["wv"][:,0] = numpy.ravel(force.wavU[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
                 # Write wave velocity along Y
                 #f.create_dataset('wh',shape=(self.nbPts,1), dtype='float32', compression='gzip')
                 #f["wh"][:,0] = numpy.ravel(force.wavH[self.i1:self.i2,self.j1:self.j2],order='F')
@@ -128,7 +123,7 @@ class outputGrid:
         self.comm.Barrier()
 
         if self.rank == 0:
-            self._write_xmf(time, outstep, force.sealevel, waveOn)
+            self._write_xmf(time, outstep, force.sealevel, force.wclim)
 
         return
 
@@ -160,7 +155,7 @@ class outputGrid:
 
         return
 
-    def _write_xmf(self, time, step, sl, waveOn):
+    def _write_xmf(self, time, step, sl, wclim):
          """
          This function writes the XmF file which is calling each HFD5 file.
 
@@ -176,8 +171,8 @@ class outputGrid:
          variable: sl
             Sealevel elevation.
 
-         variable: waveOn
-            Wave data needs to be outputed.
+         variable: wclim
+            Wave climates number to be outputed.
          """
 
          xmf_file = self.folder+'/'+self.xmffile+str(step)+'.xmf'
@@ -207,7 +202,7 @@ class outputGrid:
              f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
              f.write('>%s:/z</DataItem>\n'%(datfile))
              f.write('         </Attribute>\n')
-             if waveOn:
+             if wclim > 0:
                  f.write('         <Attribute Type="Scalar" Center="Node" Name="WaveU">\n')
                  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
                  f.write('>%s:/wu</DataItem>\n'%(datfile))

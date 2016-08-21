@@ -60,6 +60,10 @@ class xmlParser:
         self.salval = 35.5
         self.salfile = None
 
+        self.tectNb = None
+        self.tectTime = None
+        self.tectFile = None
+
         self.waveOn = False
         self.waveBase = 10000.
         self.waveNb = 0
@@ -170,6 +174,8 @@ class xmlParser:
                 raise ValueError('Error in the XmL file: stratal layer interval needs to be an exact multiple of the display interval!')
             if Decimal(self.tDisplay) % Decimal(self.tWave) != 0.:
                 raise ValueError('Error in the XmL file: wave time interval needs to be an exact multiple of the display interval!')
+            if Decimal(self.tDisplay) % Decimal(self.dt) != 0.:
+                raise ValueError('Error in the XmL file: time step interval needs to be an exact multiple of the display interval!')
             if Decimal(self.tEnd-self.tStart) % Decimal(self.tDisplay) != 0.:
                 raise ValueError('Error in the XmL file: display interval needs to be an exact multiple of the simulation time interval!')
         else:
@@ -243,6 +249,90 @@ class xmlParser:
         else:
             self.salval = 35.5
             self.salfile = None
+
+        # Extract Tectonic structure information
+        tecto = None
+        tecto = root.find('tectonic')
+        if tecto is not None:
+            element = None
+            element = tecto.find('events')
+            if element is not None:
+                tmpNb = int(element.text)
+            else:
+                raise ValueError('The number of tectonic events needs to be defined.')
+            tmpFile = numpy.empty(tmpNb,dtype=object)
+            tmpTime = numpy.empty((tmpNb,2))
+            id = 0
+            for disp in tecto.iter('disp'):
+                element = None
+                element = disp.find('dstart')
+                if element is not None:
+                    tmpTime[id,0] = float(element.text)
+                else:
+                    raise ValueError('Displacement event %d is missing start time argument.'%id)
+                element = None
+                element = disp.find('dend')
+                if element is not None:
+                    tmpTime[id,1] = float(element.text)
+                else:
+                    raise ValueError('Displacement event %d is missing end time argument.'%id)
+                if tmpTime[id,0] >= tmpTime[id,1]:
+                    raise ValueError('Displacement event %d start and end time values are not properly defined.'%id)
+                if id > 0:
+                    if tmpTime[id,0] < tmpTime[id-1,1]:
+                        raise ValueError('Displacement event %d start time needs to be >= than displacement event %d end time.'%(id,id-1))
+                element = None
+                element = disp.find('dfile')
+                if element is not None:
+                    tmpFile[id] = element.text
+                    if not os.path.isfile(tmpFile[id]):
+                        raise ValueError('Displacement file %s is missing or the given path is incorrect.'%(tmpFile[id]))
+                else:
+                    raise ValueError('Displacement event %d is missing file argument.'%id)
+                id += 1
+            if id != tmpNb:
+                raise ValueError('Number of events %d does not match with the number of declared displacement parameters %d.' %(tmpNb,id))
+
+            # Create continuous displacement series
+            self.tectNb = tmpNb
+            if tmpTime[0,0] > self.tStart:
+                self.tectNb += 1
+            for id in range(1,tmpNb):
+                if tmpTime[id,0] > tmpTime[id-1,1]:
+                    self.tectNb += 1
+            if tmpTime[tmpNb-1,1] < self.tEnd:
+                self.tectNb += 1
+            self.tectFile = numpy.empty(self.tectNb,dtype=object)
+            self.tectTime = numpy.empty((self.tectNb,2))
+            id = 0
+            if tmpTime[id,0] > self.tStart:
+                self.tectFile[id] = None
+                self.tectTime[id,0] = self.tStart
+                self.tectTime[id,1] = tmpTime[0,0]
+                id += 1
+            self.tectFile[id] = tmpFile[0]
+            self.tectTime[id,:] = tmpTime[0,:]
+            id += 1
+            for p in range(1,tmpNb):
+                if tmpTime[p,0] > tmpTime[p-1,1]:
+                    self.tectFile[id] = None
+                    self.tectTime[id,0] = tmpTime[p-1,1]
+                    self.tectTime[id,1] = tmpTime[p,0]
+                    id += 1
+                self.tectFile[id] = tmpFile[p]
+                self.tectTime[id,:] = tmpTime[p,:]
+                id += 1
+            if tmpTime[tmpNb-1,1] < self.tEnd:
+                self.tectFile[id] = None
+                self.tectTime[id,0] = tmpTime[tmpNb-1,1]
+                self.tectTime[id,1] = self.tEnd
+        else:
+            self.tectNb = 1
+            self.tectTime = numpy.empty((self.tectNb,2))
+            self.tectTime[0,0] = self.tEnd + 1.e5
+            self.tectTime[0,1] = self.tEnd + 2.e5
+            self.tectFile = numpy.empty((self.tectNb),dtype=object)
+            self.tectFile = None
 
         # Extract global wave field parameters
         wavefield = None

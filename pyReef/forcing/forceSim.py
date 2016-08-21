@@ -14,9 +14,7 @@ import os
 import numpy
 import pandas
 import mpi4py.MPI as mpi
-from scipy.ndimage.filters import gaussian_filter
 from scipy import interpolate
-from scipy.spatial import cKDTree
 
 class forceSim:
     """
@@ -49,50 +47,61 @@ class forceSim:
         Display interval (in years).
     """
 
-    def __init__(self, seafile = None, sea0 = 0., tempfile = None, temp0 = 25., salfile = None, sal0 = 35.5,
-                 waveNb = 0, waveTime = None, wavePerc = None, waveWu = None, waveWd = None, Twave = 0.,
-                 Tdisplay = 0.):
+    def __init__(self, input = None, sGrid = None):
 
-        self.sea0 = sea0
-        self.seafile = seafile
+
+        self.sea0 = input.seaval
+        self.seafile = input.seafile
         self.sealevel = None
         self.seatime = None
         self.seaFunc = None
 
-        self.temp0 = temp0
-        self.tempfile = tempfile
+        self.temp0 = input.tempval
+        self.tempfile = input.tempfile
         self.temptime = None
         self.tempval = None
         self.tempFunc = None
 
-        self.sal0 = sal0
-        self.salfile = salfile
+        self.sal0 = input.salval
+        self.salfile = input.salfile
         self.saltime = None
         self.salval = None
         self.salFunc = None
 
-        self.waveNb = waveNb
-        self.waveTime = waveTime
-        self.wavePerc = wavePerc
-        self.waveWu = waveWu
-        self.waveWd = waveWd
-
-        self.wPerc = None
-        self.wDt = None
-        self.wWindU = None
-        self.wWindA = None
-
+        self.wclim = 0
         self.wavU = None
         self.wavV = None
-        self.wavH = None
-        self.wavP = None
-        self.wavL = None
+        self.wavPerc = None
+        #self.wavH = None
+        #self.wavP = None
+        #self.wavL = None
+
+        self.Map_disp = input.tectFile
+        self.T_disp = input.tectTime
+        self.next_disp = None
 
         self.next_display = None
         self.next_layer = None
         self.next_wave = None
-        self.time_wave = Twave
-        self.time_display = Tdisplay
+        self.next_disp = None
+        self.next_carb = None
+        self.time_wave = input.tWave
+        self.time_display = input.tDisplay
+
+        self.sGrid = sGrid
+        self.Afac = input.Afactor
+
+        minX = sGrid.demX.min()
+        maxX = sGrid.demX.max()
+        minY = sGrid.demY.min()
+        maxY = sGrid.demY.max()
+        demRes = sGrid.demX[1]-sGrid.demX[0]
+        self.demnx = int(round((maxX-minX)/demRes+1))
+        self.demny = int(round((maxY-minY)/demRes+1))
+
+        if self.Afac != 1:
+            self.demX = numpy.arange(minX,maxX+demRes,demRes)
+            self.demY = numpy.arange(minY,maxY+demRes,demRes)
 
         if self.seafile != None:
             self._build_Sea_function()
@@ -177,7 +186,6 @@ class forceSim:
 
         return
 
-
     def getTemperature(self, time):
         """
         Computes for a given time the sea-surface temperature according to input file parameters.
@@ -219,3 +227,57 @@ class forceSim:
             self.salval = self.salFunc(time)
 
         return
+
+    def load_Tecto_map(self, time):
+        """
+        Load vertical displacement map for a given period and perform interpolation from dem grid to pyReef mesh.
+
+        Parameters
+        ----------
+        float : time
+            Requested time interval rain map to load.
+
+        Return
+        ----------
+        variable: dispRate
+            Numpy array containing the updated displacement rate for the considered domain.
+        """
+
+        events = numpy.where( (self.T_disp[:,1] - time) <= 0)[0]
+        event = len(events)
+
+        if not (time >= self.T_disp[event,0]) and not (time < self.T_disp[event,1]):
+            raise ValueError('Problem finding the displacements map to load!')
+
+        self.next_disp = self.T_disp[event,1]
+        dispRate = numpy.zeros((self.sGrid.nx,self.sGrid.ny), dtype=float)
+
+        if self.Map_disp[event] != None:
+            dispMap = pandas.read_csv(str(self.Map_disp[event]), sep=r'\s+', engine='c', header=None, na_filter=False, \
+                               dtype=numpy.float, low_memory=False)
+
+            if self.Afac == 1:
+                rectDisp = numpy.reshape(dispMap.values,(self.demnx,self.demny),order='F')
+            else:
+                rDisp = numpy.reshape(dispMap.values,(self.demnx,self.demny),order='F')
+                interpolate_fct = interpolate.interp2d(self.demY,self.demX,rDisp,kind='cubic')
+                rectDisp = interpolate_fct(self.sGrid.regY[1:self.ny-1],self.sGrid.regX[1:self.nx-1])
+
+            # Define internal nodes displacements
+            dispRate[1:1+rectDisp.shape[0],1:1+rectDisp.shape[1]] = rectDisp
+            # Define ghosts displacements
+            dispRate[0,:] = dispRate[1,:]
+            dispRate[self.sGrid.nx-1,:] = dispRate[self.sGrid.nx-2,:]
+            dispRate[:,0] = dispRate[:,1]
+            dispRate[:,self.sGrid.ny-1] = dispRate[:,self.sGrid.ny-2]
+            dispRate[0,0] = dispRate[1,1]
+            dispRate[self.sGrid.nx-1,0] = dispRate[self.sGrid.nx-2,1]
+            dispRate[self.sGrid.nx-1,self.ny-1] = dispRate[self.sGrid.nx-2,self.sGrid.ny-2]
+            dispRate[0,self.sGrid.ny-1] = dispRate[1,self.sGrid.ny-2]
+
+            dt = (self.T_disp[event,1] - self.T_disp[event,0])
+            if dt <= 0:
+                raise ValueError('Problem computing the displacements rate for event %d.'%event)
+            dispRate = dispRate / dt
+
+        return dispRate

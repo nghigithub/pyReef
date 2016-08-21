@@ -23,9 +23,13 @@ class Model(object):
 
         # simulation state
         self.tNow = 0.
+        self.tDisp = 0.
         self.waveID = 0
         self.outputStep = 0
+        self.applyDisp = False
         self.simStarted = False
+
+        self.dispRate = None
 
         self._rank = mpi.COMM_WORLD.rank
         self._size = mpi.COMM_WORLD.size
@@ -55,23 +59,19 @@ class Model(object):
         # Build pyReef surface and stratigraphic mesh
         self.pyGrid = buildMesh.construct_surface_mesh(self.input)
 
-        # Define forcing conditions: sea, temperature, salinity, wave
-        self.force = forceSim.forceSim(self.input.seafile, self.input.seaval, self.input.tempfile, self.input.tempval,
-                                  self.input.salfile, self.input.salval, self.input.waveNb, self.input.waveTime,
-                                  self.input.wavePerc, self.input.waveWu, self.input.waveWd, self.input.tWave,
-                                  self.input.tDisplay)
-
         # Initialise surface
-        outSurf = outputGrid.outputGrid(self.pyGrid, self.input.outDir, self.input.h5file, self.input.xmffile, self.input.xdmffile)
+        outSurf = outputGrid.outputGrid(self.pyGrid, self.input.outDir, self.input.h5file,
+                                        self.input.xmffile, self.input.xdmffile)
+
+        # Define forcing conditions: sea, temperature, salinity, wave
+        self.force = forceSim.forceSim(self.input, self.pyGrid)
 
         # Define display and wave climate next time step
-        self.force.next_display = self.input.tStart + self.force.time_display
+        self.force.next_display = self.input.tStart
         if self.input.waveOn:
-            self.force.next_wave = self.input.tStart + self.force.time_wave
-            if self.force.next_wave > self.force.next_display:
-                self.force.next_wave = self.force.next_display
+            self.force.next_wave = self.input.tStart
         else:
-            self.force.next_wave = self.input.tEnd + 10.
+            self.force.next_wave = self.input.tEnd + 1.e5
 
         # Get sea-level at start time
         if self.input.seaOn:
@@ -87,6 +87,8 @@ class Model(object):
 
         # Initialise SWAN
         if self.input.waveOn:
+            print self.input.wavelist
+            print self.input.climlist
             wl = self.input.wavelist[self.waveID]
             cl = self.input.climlist[self.waveID]
             tw = time.clock()
@@ -99,17 +101,17 @@ class Model(object):
                 print 'Swan model initialisation took %0.02f seconds' %(time.clock()-tw)
 
             # Define next wave regime
-            tw = time.clock()
-            self.waveID += 1
-            wl = self.input.wavelist[self.waveID]
-            cl = self.input.climlist[self.waveID]
-            self.force.wavU, self.force.wavV, self.force.wavH, self.force.wavP, \
-                self.force.wavL = swan.model.run(self.fcomm, self.pyGrid.regZ,
-                                                 self.input.waveWu[wl][cl],
-                                                 self.input.waveWd[wl][cl],
-                                                 self.force.sealevel)
-            if self._rank == 0:
-                print 'Swan model run took %0.02f seconds' %(time.clock()-tw)
+            # tw = time.clock()
+            # self.waveID += 1
+            # wl = self.input.wavelist[self.waveID]
+            # cl = self.input.climlist[self.waveID]
+            # self.force.wavU, self.force.wavV, self.force.wavH, self.force.wavP, \
+            #     self.force.wavL = swan.model.run(self.fcomm, self.pyGrid.regZ,
+            #                                      self.input.waveWu[wl][cl],
+            #                                      self.input.waveWd[wl][cl],
+            #                                      self.force.sealevel)
+            # if self._rank == 0:
+            #     print 'Swan model run took %0.02f seconds' %(time.clock()-tw)
 
             # # Define next wave regime
             # tw = time.clock()
@@ -122,12 +124,6 @@ class Model(object):
             #                                                self.force.sealevel)
             # if self._rank == 0:
             #      print 'Swan model run took %0.02f seconds' %(time.clock()-tw)
-
-
-            swan.model.final(self.fcomm)
-
-        # Output surface
-        outSurf.write_hdf5_grid(self.pyGrid.regZ, self.force, self.tNow, self.outputStep)
 
     def run_to_time(self, tEnd, profile=False, verbose=False):
         """
@@ -143,11 +139,88 @@ class Model(object):
 
         # Define non-flow related processes times
         if not self.simStarted:
+            self.tDisp = self.input.tStart
             self.force.next_display = self.input.tStart
+            self.force.next_disp = self.force.T_disp[0, 0]
+            self.force.next_carb = self.input.tStart
             self.exitTime = self.input.tEnd
             self.simStarted = True
+            self.force.next_display = self.input.tStart
 
-        # Do work here
+        # Perform main simulation loop
+        while self.tNow < tEnd:
+
+            # Apply displacements
+            if self.applyDisp:
+                if self.tDisp < self.tNow:
+                    dispTH = self.dispRate * (self.tNow - self.tDisp)
+                    self.pyGrid.regZ += dispTH
+                    self.tDisp = self.tNow
+
+            # Update sea-level fluctuations
+            if self.input.seaOn:
+                self.force.getSea(self.tNow)
+
+            # Update sea-surface temperatures
+            if self.input.tempOn:
+                self.force.getTemperature(self.tNow)
+
+            # Update sea-surface salinities
+            if self.input.salOn:
+                self.force.getSalinity(self.tNow)
+
+            # Update wave parameters
+            if self.input.waveOn:
+                if self.force.next_wave <= self.tNow and self.force.next_wave < self.input.tEnd:
+                    # Loop through the different wave climates and store swan output information
+                    self.force.wclim = self.input.climNb[self.input.wavelist[self.waveID]]
+                    self.force.wavU = []
+                    self.force.wavV = []
+                    self.force.Perc = []
+                    for clim in range(self.force.wclim):
+                        # Define next wave regime
+                        tw = time.clock()
+                        self.waveID += 1
+                        wl = self.input.wavelist[self.waveID]
+                        cl = self.input.climlist[self.waveID]
+                        # Run SWAN model
+                        wavU, wavV = swan.model.run(self.fcomm, self.pyGrid.regZ, self.input.waveWu[wl][cl],
+                                                    self.input.waveWd[wl][cl], self.force.sealevel)
+                        # Store percentage of each climate and induced bottom currents velocity
+                        self.force.wavU.append(wavU)
+                        self.force.wavV.append(wavV)
+                        self.force.Perc.append(self.input.wavePerc[wl][cl])
+                        if self._rank == 0:
+                            print 'Swan model of wave field %d and climatic conditions %d:' %(wl,cl)
+                            print 'took %0.02f seconds to run.' %(time.clock()-tw)
+                    # Update next wave time step
+                    self.force.next_wave += self.force.time_wave
+                    if self.force.next_wave > self.force.next_display:
+                        self.force.next_wave = self.force.next_display
+
+            # Create output
+            if self.force.next_display <= self.tNow and self.force.next_display < self.input.tEnd:
+                outSurf.write_hdf5_grid(self.pyGrid.regZ, self.force, self.tNow, self.outputStep)
+                self.force.next_display += self.force.time_display
+                self.outputStep += 1
+
+            # Update vertical displacements
+            if self.force.next_disp <= self.tNow and self.force.next_disp < self.input.tEnd:
+                self.dispRate = self.force.load_Tecto_map(self.tNow)
+                self.applyDisp = True
+
+            # Update carbonate parameters
+            if self.force.next_carb <= self.tNow and self.force.next_carb < self.input.tEnd:
+                self.force.next_carb += self.input.dt
+                if self.force.next_carb > self.force.next_display:
+                    self.force.next_carb = self.force.next_display
+
+            # Get the maximum time before updating one of the above processes / components
+            self.tNow = min([self.force.next_display, tEnd, self.force.next_disp, self.force.next_wave])
+
+        # Finalise SWAN model run
+        if self.input.waveOn and self.tNow == self.input.tEnd:
+            swan.model.final(self.fcomm)
 
         if profile:
             pr.disable()
