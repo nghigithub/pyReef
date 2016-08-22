@@ -48,6 +48,16 @@ class xmlParser:
         self.tDisplay = None
         self.laytime = None
 
+        self.faciesNb = None
+        self.faciesName = None
+        self.faciesDiam = None
+
+        self.stratlays = None
+        self.stratMap = None
+        self.stratVal = None
+        self.thickMap = None
+        self.thickVal = None
+
         self.seaOn = False
         self.seaval = 0.
         self.seafile = None
@@ -55,6 +65,10 @@ class xmlParser:
         self.tempOn = False
         self.tempval = 25.
         self.tempfile = None
+
+        self.phOn = False
+        self.phval = 8.1
+        self.phfile = None
 
         self.salOn = False
         self.salval = 35.5
@@ -181,6 +195,96 @@ class xmlParser:
         else:
             raise ValueError('Error in the XmL file: time structure definition is required!')
 
+        # Extract lithofacies structure information
+        litho = None
+        litho = root.find('lithofacies')
+        if litho is not None:
+            element = None
+            element = litho.find('faciesNb')
+            if element is not None:
+                self.faciesNb = int(element.text)
+            else:
+                raise ValueError('Error in the definition of the lithofacies: number of facies is required')
+            self.faciesName = numpy.empty(self.faciesNb, dtype="S10")
+            self.faciesDiam = numpy.zeros(self.faciesNb, dtype=float)
+            id = 0
+            for facies in litho.iter('facies'):
+                if id >= self.faciesNb:
+                    raise ValueError('The number of facies does not match the number of defined ones.')
+                element = None
+                element = facies.find('name')
+                if element is not None:
+                    self.faciesName[id] = element.text
+                else:
+                    raise ValueError('Facies name %d is missing in the lithofacies structure.'%id)
+                element = None
+                element = facies.find('diam')
+                if element is not None:
+                    self.faciesDiam[id] = float(element.text)
+                else:
+                    raise ValueError('Diameter %d is missing in the lithofacies structure.'%id)
+                id += 1
+        else:
+            raise ValueError('Error in the XmL file: lithofacies structure definition is required!')
+
+        # Extract basement structure information
+        strat = None
+        strat = root.find('basement')
+        if strat is not None:
+            element = None
+            element = strat.find('stratlayers')
+            if element is not None:
+                self.stratlays = int(element.text)
+            else:
+                raise ValueError('Error in the definition of the basement: number of layers is required')
+            self.stratVal = numpy.empty((self.stratlays,self.faciesNb), dtype=float)
+            self.stratMap = numpy.empty(self.stratlays, dtype=object)
+            self.thickVal = numpy.empty(self.stratlays, dtype=float)
+            self.thickMap = numpy.empty(self.stratlays, dtype=object)
+            id = 0
+            for lay in strat.iter('layer'):
+                if id >= self.stratlays:
+                    raise ValueError('The number of layers does not match the number of defined ones.')
+                element = None
+                element = lay.find('facPerc')
+                if element is not None:
+                    tmpPerc = numpy.fromstring(element.text, dtype=float, sep=',')
+                    if len(tmpPerc) != self.faciesNb:
+                        raise ValueError('The number of facies percentages defined for the layer %d does not match the number of defined lithofacies.'%id)
+                    if numpy.sum(tmpPerc) != 1:
+                        raise ValueError('The summation of each percentages for layer %d does not equal 1.'%id)
+                    self.stratVal[id,:] = tmpPerc
+                else:
+                    self.stratVal[id,:] = numpy.zeros(self.faciesNb,dtype=float)
+                if sum(self.stratVal[id,:]) == 0.:
+                    element = None
+                    element = lay.find('facmap')
+                    if element is not None:
+                        self.stratMap[id] = element.text
+                    else:
+                        raise ValueError('Error either facPerc or facmap parameters needs to be defined in layer %d structure'%id)
+                else:
+                    self.stratMap[id] = None
+
+                element = None
+                element = lay.find('thcst')
+                if element is not None:
+                    self.thickVal[id] = float(element.text)
+                else:
+                    self.thickVal[id] = 0.
+                if self.thickVal[id] == 0.:
+                    element = None
+                    element = lay.find('thmap')
+                    if element is not None:
+                        self.thickMap[id] = element.text
+                    else:
+                        raise ValueError('Error either thcst or thmap parameters needs to be defined in layer %d structure'%id)
+                else:
+                    self.thickMap[id] = None
+                id += 1
+        else:
+            raise ValueError('Error in the XmL file: basement structure definition is required!')
+
         # Extract sea-level structure information
         sea = None
         sea = root.find('sea')
@@ -203,6 +307,29 @@ class xmlParser:
         else:
             self.seapos = 0.
             self.seafile = None
+
+        # Extract ocean acidity information
+        acidity = None
+        acidity = root.find('acidification')
+        if acidity is not None:
+            self.phOn = True
+            element = None
+            element = acidity.find('val')
+            if element is not None:
+                self.phval = float(element.text)
+            else:
+                self.seaval = 0.
+            element = None
+            element = acidity.find('curve')
+            if element is not None:
+                self.phfile = element.text
+                if not os.path.isfile(self.phfile):
+                    raise ValueError('Ocean acidity file is missing or the given path is incorrect.')
+            else:
+                self.seafile = None
+        else:
+            self.phval = 0.
+            self.phfile = None
 
         # Extract temperature structure information
         temp = None
@@ -474,6 +601,7 @@ class xmlParser:
             os.makedirs(self.outDir)
             os.makedirs(self.outDir+'/h5')
             os.makedirs(self.outDir+'/xmf')
+            os.makedirs(self.outDir+'/vtk')
             if self.waveOn:
                 os.makedirs(self.outDir+'/swan')
 

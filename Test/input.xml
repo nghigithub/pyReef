@@ -28,6 +28,67 @@
 					<laytime>0.5</laytime>
 			</time>
 
+			<!-- Lithofacies structure -->
+			<lithofacies>
+					<!-- Number of lithofacies -->
+					<faciesNb>2</faciesNb>
+					<!-- Facies definition -->
+					<facies>
+							<!-- Facies name needs to be lower than 10 characters -->
+				    	<name>'coralgal'</name>
+							<!-- Averaged diameter of facies type [mm] -->
+				      <diam>0.3</diam>
+					</facies>
+					<facies>
+							<!-- Facies name -->
+				    	<name>'sand'</name>
+							<!-- Averaged diameter of facies type [mm] -->
+				      <diam>2.</diam>
+					</facies>
+			</lithofacies>
+
+	    <!-- Basement structure:
+	         Specify initial stratigraphic layers. -->
+	    <basement>
+	        <!-- Number of stratigraphic layers. -->
+	        <stratlayers>1</stratlayers>
+	        <!-- The layering is defined from top to bottom, with:
+	            - either a constant percentage value for each lithofacies or with a lithofacies map
+	            - either a constant thickness for the entire layer or with a thickness map -->
+	        <!-- Constant facies percentage and layer thickness -->
+	        <layer>
+	            <!-- Uniform percentage value for the considered layer, the percentage is defined for each
+									 facies in the same order as defined in the lithofacies structure. -->
+	            <facPerc>0.2,0.8</facPerc>
+	            <!-- Uniform thickness value for the considered layer [m]. -->
+	            <thcst>100.</thcst>
+	        </layer>
+					<?ignore
+	        <!-- Constant lithofacies distribution and variable layer thickness map -->
+	        <layer>
+	            <!-- Uniform percentage value for the considered layer, the percentage is defined for each
+									 facies in the same order as defined in the lithofacies structure. -->
+	            <facPerc>0.5,0.5</facPerc>
+	            <!-- Variable thicknesses for the considered layer [m]. -->
+	            <thmap>data/thlay2.csv</thmap>
+	        </layer>
+	        <!-- Variable lithofacies distribution and constant layer thickness -->
+	        <layer>
+	            <!-- Variable lithofacies distribution for the considered layer. -->
+	            <facmap>data/litho3.csv</facmap>
+	            <!-- Uniform thickness value for the considered layer [m]. -->
+	            <thcst>30</thcst>
+	        </layer>
+	        <!-- Variable lithofacies distribution and thicknesses -->
+	        <layer>
+	            <!-- Variable lithofacies distribution for the considered layer. -->
+	            <facmap>data/litho4.csv</facmap>
+	            <!-- Variable thicknesses for the considered layer [m]. -->
+	            <thmap>data/thlay4.csv</thmap>
+	        </layer>
+					?>
+	    </basement>
+
 			<!-- Sea-level structure
 			     The following methods can be used:
 			        - a constant sea-level position for the entire simulation [m]
@@ -59,6 +120,22 @@
 					-->
 				  <!--curve>data/temp.csv</curve-->
 			</temperature>
+
+			<!-- Ocean acidity structure
+			     The following methods can be used:
+			        - a constant ph for the entire simulation
+			        - a ph fluctuations curve (defined in a file)
+			-->
+			<acidification>
+					<!-- Constant ph value - (optional) -->
+					<val>8.1</val>
+				  <!-- ph curve - (optional). The file is made of 2 columns:
+									- first column: the time in year (increasing order)
+									- second column: the ph value for the considered time
+							 For any given time in the simulation the ph is obtained by linear interpolation
+					-->
+				  <!--curve>data/temp.csv</curve-->
+			</acidification>
 
 			<!-- Sea-surface salinity structure
 			     The following methods can be used:

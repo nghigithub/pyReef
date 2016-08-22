@@ -22,29 +22,11 @@ class forceSim:
 
     Parameters
     ----------
-    string : seafile
-        Path to the sea level fluctuation file (if any).
+    class: input
+        Input parameter class.
 
-    float : sea0
-        Relative sea level position in case no sea level curve is provided (default is 0.).
-
-    string : tempfile
-        Path to the temperature file (if any).
-
-    float : temp0
-        Sea-surface temperature value in case no temperature curve is provided (default is 25.).
-
-    string : salfile
-        Path to the salinity file (if any).
-
-    float : sal0
-        Sea-surface salinity value in case no salinity curve is provided (default is 35.5).
-
-    float : Twave
-        Wave computation interval (in years).
-
-    float : Tdisplay
-        Display interval (in years).
+    class: sGrid
+        Surface parameter class.
     """
 
     def __init__(self, input = None, sGrid = None):
@@ -68,6 +50,12 @@ class forceSim:
         self.salval = None
         self.salFunc = None
 
+        self.ph0 = input.phval
+        self.phfile = input.phfile
+        self.phtime = None
+        self.phval = None
+        self.phFunc = None
+
         self.wclim = 0
         self.wavU = None
         self.wavV = None
@@ -85,6 +73,7 @@ class forceSim:
         self.next_wave = None
         self.next_disp = None
         self.next_carb = None
+        self.time_layer = input.laytime
         self.time_wave = input.tWave
         self.time_display = input.tDisplay
 
@@ -111,6 +100,9 @@ class forceSim:
 
         if self.salfile != None:
             self._build_Salinity_function()
+
+        if self.phfile != None:
+            self._build_Acidity_function()
 
         return
 
@@ -145,6 +137,23 @@ class forceSim:
         self.temptime = tempdata.values[:,0]
         tmp = tempdata.values[:,1]
         self.tempFunc = interpolate.interp1d(self.temptime, tmp, kind='linear')
+
+        return
+
+    def _build_Acidity_function(self):
+        """
+        Using Pandas library to read the ocean acidification file and define ph interpolation
+        function based on Scipy 1D linear function.
+        """
+
+        # Read temperature file
+        phdata = pandas.read_csv(self.phfile, sep=r'\s+', engine='c',
+                               header=None, na_filter=False,
+                               dtype=numpy.float, low_memory=False)
+
+        self.phtime = phdata.values[:,0]
+        tmp = phdata.values[:,1]
+        self.phFunc = interpolate.interp1d(self.phtime, tmp, kind='linear')
 
         return
 
@@ -207,6 +216,27 @@ class forceSim:
 
         return
 
+    def getph(self, time):
+        """
+        Computes for a given time the ocean ph according to input file parameters.
+
+        Parameters
+        ----------
+        float : time
+            Requested time for which to compute sea ph value.
+        """
+
+        if self.phfile == None:
+            self.phval = self.ph0
+        else:
+            if time < self.phtime.min():
+                time = self.phtime.min()
+            if time > self.phtime.max():
+                time = self.phtime.max()
+            self.phval = self.phFunc(time)
+
+        return
+
     def getSalinity(self, time):
         """
         Computes for a given time the sea-surface salinity according to input file parameters.
@@ -235,7 +265,7 @@ class forceSim:
         Parameters
         ----------
         float : time
-            Requested time interval rain map to load.
+            Requested time interval displacement map to load.
 
         Return
         ----------

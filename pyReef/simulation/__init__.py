@@ -10,5 +10,6 @@
    Implementation relating to pyReef main simulation Mesh construction.
 """
 
+import map2strat
 import raster2surf
 import outputGrid

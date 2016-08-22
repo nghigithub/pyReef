@@ -2,7 +2,7 @@ import time
 import numpy as np
 import mpi4py.MPI as mpi
 
-from pyReef import (forceSim, outputGrid, buildMesh, xmlParser)
+from pyReef import (forceSim, outputGrid, raster2surf, map2strat, xmlParser)
 
 from pyReef.libUtils  import simswan as swan
 
@@ -56,8 +56,11 @@ class Model(object):
         Create pyReef surface grid and stratigraphic mesh.
         """
 
-        # Build pyReef surface and stratigraphic mesh
-        self.pyGrid = buildMesh.construct_surface_mesh(self.input)
+        # From DEM grid create pyReef surface grid and partition.
+        self.pyGrid = raster2surf.raster2surf(inputfile=self.input.demfile, resRecFactor=self.input.Afactor)
+
+        # Build pyReef stratigraphic mesh.
+        self.pyStrat = map2strat.map2strat(self.input, self.pyGrid)
 
         # Initialise surface
         outSurf = outputGrid.outputGrid(self.pyGrid, self.input.outDir, self.input.h5file,
@@ -68,6 +71,7 @@ class Model(object):
 
         # Define display and wave climate next time step
         self.force.next_display = self.input.tStart
+        self.force.next_layer = self.input.tStart + self.force.time_layer
         if self.input.waveOn:
             self.force.next_wave = self.input.tStart
         else:
@@ -77,18 +81,12 @@ class Model(object):
         if self.input.seaOn:
             self.force.getSea(self.tNow)
 
-        # Get sea-surface temperature at start time
-        if self.input.tempOn:
-            self.force.getTemperature(self.tNow)
-
-        # Get sea-surface salinity at start time
-        if self.input.salOn:
-            self.force.getSalinity(self.tNow)
+        # Write stratigraphic mesh
+        outSurf.write_hdf5_grid(self.pyGrid.regZ, self.force, self.tNow, self.outputStep)
+        self.pyStrat.write_mesh(self.pyGrid.regZ, self.tNow, self.outputStep)
 
         # Initialise SWAN
         if self.input.waveOn:
-            print self.input.wavelist
-            print self.input.climlist
             wl = self.input.wavelist[self.waveID]
             cl = self.input.climlist[self.waveID]
             tw = time.clock()
@@ -169,6 +167,10 @@ class Model(object):
             if self.input.salOn:
                 self.force.getSalinity(self.tNow)
 
+            # Get ocean ph at start time
+            if self.input.phOn:
+                self.force.getph(self.tNow)
+
             # Update wave parameters
             if self.input.waveOn:
                 if self.force.next_wave <= self.tNow and self.force.next_wave < self.input.tEnd:
@@ -203,6 +205,11 @@ class Model(object):
                 outSurf.write_hdf5_grid(self.pyGrid.regZ, self.force, self.tNow, self.outputStep)
                 self.force.next_display += self.force.time_display
                 self.outputStep += 1
+
+            # Add stratigraphic layer
+            if self.force.next_layer <= self.tNow and self.force.next_layer < self.input.tEnd:
+                self.force.next_layer += self.force.time_layer
+                self.pyStrat.layID += 1
 
             # Update vertical displacements
             if self.force.next_disp <= self.tNow and self.force.next_disp < self.input.tEnd:
