@@ -50,15 +50,10 @@ class outputGrid:
             self.i2 = surf.partIDs[self.rank,1]+1
 
         self.nbPts = (self.j2-self.j1)*(self.i2-self.i1)
-        self.x = numpy.zeros(self.nbPts)
-        self.y = numpy.zeros(self.nbPts)
-        p = 0
-        for j in range(self.j1,self.j2):
-            for i in range(self.i1,self.i2):
-                self.x[p] = surf.regX[i]
-                self.y[p] = surf.regY[j]
-                p += 1
-
+        xv, yv = numpy.meshgrid(surf.regX[self.i1:self.i2], surf.regY[self.j1:self.j2], sparse=False, indexing='ij')
+        self.x = xv.T.flatten()
+        self.y = yv.T.flatten()
+        
         self.folder = folder
         self.h5file = h5file
         self.xmffile = xmffile
