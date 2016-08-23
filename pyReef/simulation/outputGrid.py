@@ -53,7 +53,7 @@ class outputGrid:
         xv, yv = numpy.meshgrid(surf.regX[self.i1:self.i2], surf.regY[self.j1:self.j2], sparse=False, indexing='ij')
         self.x = xv.T.flatten()
         self.y = yv.T.flatten()
-        
+
         self.folder = folder
         self.h5file = h5file
         self.xmffile = xmffile
@@ -104,7 +104,7 @@ class outputGrid:
                 f["wu"][:,0] = numpy.ravel(force.wavU[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
                 # Write wave velocity along Y
                 f.create_dataset('wv',shape=(self.nbPts,1), dtype='float32', compression='gzip')
-                f["wv"][:,0] = numpy.ravel(force.wavU[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
+                f["wv"][:,0] = numpy.ravel(force.wavV[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
                 # Write wave velocity along Y
                 #f.create_dataset('wh',shape=(self.nbPts,1), dtype='float32', compression='gzip')
                 #f["wh"][:,0] = numpy.ravel(force.wavH[self.i1:self.i2,self.j1:self.j2],order='F')

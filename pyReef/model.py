@@ -63,7 +63,7 @@ class Model(object):
         self.pyStrat = map2strat.map2strat(self.input, self.pyGrid)
 
         # Initialise surface
-        outSurf = outputGrid.outputGrid(self.pyGrid, self.input.outDir, self.input.h5file,
+        self.outSurf = outputGrid.outputGrid(self.pyGrid, self.input.outDir, self.input.h5file,
                                         self.input.xmffile, self.input.xdmffile)
 
         # Define forcing conditions: sea, temperature, salinity, wave
@@ -80,10 +80,6 @@ class Model(object):
         # Get sea-level at start time
         if self.input.seaOn:
             self.force.getSea(self.tNow)
-
-        # Write stratigraphic mesh
-        outSurf.write_hdf5_grid(self.pyGrid.regZ, self.force, self.tNow, self.outputStep)
-        self.pyStrat.write_mesh(self.pyGrid.regZ, self.tNow, self.outputStep)
 
         # Initialise SWAN
         if self.input.waveOn:
@@ -135,6 +131,10 @@ class Model(object):
             pr = cProfile.Profile()
             pr.enable()
 
+        if tEnd > self.input.tEnd:
+            tEnd = self.input.tEnd
+            print 'Requested time is set to the simulation end time as defined in the XmL input file'
+
         # Define non-flow related processes times
         if not self.simStarted:
             self.tDisp = self.input.tStart
@@ -173,7 +173,7 @@ class Model(object):
 
             # Update wave parameters
             if self.input.waveOn:
-                if self.force.next_wave <= self.tNow and self.force.next_wave < self.input.tEnd:
+                if self.force.next_wave <= self.tNow:
                     # Loop through the different wave climates and store swan output information
                     self.force.wclim = self.input.climNb[self.input.wavelist[self.waveID]]
                     self.force.wavU = []
@@ -197,12 +197,11 @@ class Model(object):
                             print 'took %0.02f seconds to run.' %(time.clock()-tw)
                     # Update next wave time step
                     self.force.next_wave += self.force.time_wave
-                    if self.force.next_wave > self.force.next_display:
-                        self.force.next_wave = self.force.next_display
 
             # Create output
             if self.force.next_display <= self.tNow and self.force.next_display < self.input.tEnd:
-                outSurf.write_hdf5_grid(self.pyGrid.regZ, self.force, self.tNow, self.outputStep)
+                self.outSurf.write_hdf5_grid(self.pyGrid.regZ, self.force, self.tNow, self.outputStep)
+                self.pyStrat.write_mesh(self.pyGrid.regZ, self.tNow, self.outputStep)
                 self.force.next_display += self.force.time_display
                 self.outputStep += 1
 
@@ -219,8 +218,8 @@ class Model(object):
             # Update carbonate parameters
             if self.force.next_carb <= self.tNow and self.force.next_carb < self.input.tEnd:
                 self.force.next_carb += self.input.dt
-                if self.force.next_carb > self.force.next_display:
-                    self.force.next_carb = self.force.next_display
+                # if self.force.next_carb > self.force.next_display:
+                #     self.force.next_carb = self.force.next_display
 
             # Get the maximum time before updating one of the above processes / components
             self.tNow = min([self.force.next_display, tEnd, self.force.next_disp, self.force.next_wave])
