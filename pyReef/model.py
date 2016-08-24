@@ -178,6 +178,8 @@ class Model(object):
                     self.force.wclim = self.input.climNb[self.input.wavelist[self.waveID]]
                     self.force.wavU = []
                     self.force.wavV = []
+                    self.force.wavD = []
+                    self.force.wavH = []
                     self.force.Perc = []
                     for clim in range(self.force.wclim):
                         # Define next wave regime
@@ -186,11 +188,15 @@ class Model(object):
                         wl = self.input.wavelist[self.waveID]
                         cl = self.input.climlist[self.waveID]
                         # Run SWAN model
-                        wavU, wavV = swan.model.run(self.fcomm, self.pyGrid.regZ, self.input.waveWu[wl][cl],
+                        wavU, wavD, H = swan.model.run(self.fcomm, self.pyGrid.regZ, self.input.waveWu[wl][cl],
                                                     self.input.waveWd[wl][cl], self.force.sealevel)
+                        U = wavU * np.cos(wavD)
+                        V = wavU * np.sin(wavD)
                         # Store percentage of each climate and induced bottom currents velocity
-                        self.force.wavU.append(wavU)
-                        self.force.wavV.append(wavV)
+                        self.force.wavU.append(U)
+                        self.force.wavV.append(V)
+                        self.force.wavH.append(H)
+                        self.force.wavD.append(wavD)
                         self.force.Perc.append(self.input.wavePerc[wl][cl])
                         if self._rank == 0:
                             print 'Swan model of wave field %d and climatic conditions %d:' %(wl,cl)
