@@ -17,11 +17,11 @@
 					<!-- Simulation start time [a] -->
 					<start>0.</start>
 					<!-- Simulation end time [a] -->
-					<end>2.</end>
+					<end>0.5</end>
 					<!-- Time step [a] -->
 					<dt>0.5</dt>
 					<!-- Wave interval [a] -->
-					<twave>0.25</twave>
+					<twave>0.5</twave>
 					<!-- Display interval [a] -->
 					<display>0.5</display>
 					<!-- Stratigraphic layer interval [a] -->
@@ -176,6 +176,10 @@
 				  <base>50.0</base>
 					<!-- Number of wave climate temporal events. -->
 				  <events>2</events>
+					<!-- Longshore current velocity coefficient based on Komar (76). -->
+					<cKom>2.7</cKom>
+					<!-- Gaussian filter coefficient for longshore current intensity smoothing. -->
+					<sigma>2</sigma>
 			</waveglobal>
 
 			<!-- Wave definition based on wave global structure.
@@ -196,7 +200,11 @@
 				      <windv>10</windv>
 							<!-- Wind direction at 10 m elevation in degrees from the
 									 X-axis (horizontal) anti-clock wise -->
-				      <dir>270</dir>
+				      <dir>180</dir>
+							<!-- Wave breaking depth [m] -->
+				      <break>-5</break>
+							<!-- Storm (1) or recovery period (0) -->
+				      <storm>0</storm>
 					</climate>
 			</wave>
 
@@ -218,7 +226,11 @@
 				      <windv>40</windv>
 							<!-- Wind direction at 10 m elevation in degrees from the
 									 X-axis (horizontal) anti-clock wise -->
-				      <dir>180</dir>
+				      <dir>0</dir>
+							<!-- Wave breaking depth [m] -->
+				      <break>-5</break>
+							<!-- Storm (1) or recovery period (0) -->
+				      <storm>1</storm>
 					</climate>
 					<!-- Climatic wave definition based on wind parameters. -->
 					<climate>
@@ -228,7 +240,11 @@
 				      <windv>8</windv>
 							<!-- Wind direction at 10 m elevation in degrees from the
 							     X-axis (horizontal) anti-clock wise -->
-				      <dir>180</dir>
+				      <dir>24</dir>
+							<!-- Wave breaking depth [m] -->
+				      <break>-5</break>
+							<!-- Storm (1) or recovery period (0) -->
+				      <storm>0</storm>
 					</climate>
 			</wave>
 
