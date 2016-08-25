@@ -105,15 +105,12 @@ class outputGrid:
                 # Write wave velocity along Y
                 f.create_dataset('wv',shape=(self.nbPts,1), dtype='float32', compression='gzip')
                 f["wv"][:,0] = numpy.ravel(force.wavV[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
+                # Write longshore current velocity
+                # f.create_dataset('lu',shape=(self.nbPts,1), dtype='float32', compression='gzip')
+                # f["lu"][:,0] = numpy.ravel(force.longU[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
                 # Write wave velocity along Y
-                #f.create_dataset('wh',shape=(self.nbPts,1), dtype='float32', compression='gzip')
-                #f["wh"][:,0] = numpy.ravel(force.wavH[self.i1:self.i2,self.j1:self.j2],order='F')
-                # Write wave velocity along Y
-                #f.create_dataset('wp',shape=(self.nbPts,1), dtype='float32', compression='gzip')
-                #f["wp"][:,0] = numpy.ravel(force.wavP[self.i1:self.i2,self.j1:self.j2],order='F')
-                # Write wave velocity along Y
-                #f.create_dataset('wl',shape=(self.nbPts,1), dtype='float32', compression='gzip')
-                #f["wl"][:,0] = numpy.ravel(force.wavL[self.i1:self.i2,self.j1:self.j2],order='F')
+                # f.create_dataset('ld',shape=(self.nbPts,1), dtype='float32', compression='gzip')
+                # f["ld"][:,0] = numpy.ravel(force.longD[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
 
         self.comm.Barrier()
 
@@ -198,21 +195,21 @@ class outputGrid:
              f.write('>%s:/z</DataItem>\n'%(datfile))
              f.write('         </Attribute>\n')
              if wclim > 0:
-                 f.write('         <Attribute Type="Scalar" Center="Node" Name="WaveU">\n')
+                 f.write('         <Attribute Type="Scalar" Center="Node" Name="Ux">\n')
                  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
                  f.write('>%s:/wu</DataItem>\n'%(datfile))
                  f.write('         </Attribute>\n')
-                 f.write('         <Attribute Type="Scalar" Center="Node" Name="WaveV">\n')
+                 f.write('         <Attribute Type="Scalar" Center="Node" Name="Uy">\n')
                  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
                  f.write('>%s:/wv</DataItem>\n'%(datfile))
                  f.write('         </Attribute>\n')
-                #  f.write('         <Attribute Type="Scalar" Center="Node" Name="WaveH">\n')
+                #  f.write('         <Attribute Type="Scalar" Center="Node" Name="LongshoreU">\n')
                 #  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
-                #  f.write('>%s:/wh</DataItem>\n'%(datfile))
+                #  f.write('>%s:/lu</DataItem>\n'%(datfile))
                 #  f.write('         </Attribute>\n')
-                #  f.write('         <Attribute Type="Scalar" Center="Node" Name="WaveP">\n')
+                #  f.write('         <Attribute Type="Scalar" Center="Node" Name="LongshoreD">\n')
                 #  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
-                #  f.write('>%s:/wp</DataItem>\n'%(datfile))
+                #  f.write('>%s:/ld</DataItem>\n'%(datfile))
                 #  f.write('         </Attribute>\n')
                 #  f.write('         <Attribute Type="Scalar" Center="Node" Name="WaveL">\n')
                 #  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))

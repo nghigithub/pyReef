@@ -2,7 +2,7 @@ import time
 import numpy as np
 import mpi4py.MPI as mpi
 
-from pyReef import (forceSim, outputGrid, raster2surf, map2strat, xmlParser)
+from pyReef import (hydrodynamic, forceSim, outputGrid, raster2surf, map2strat, xmlParser)
 
 from pyReef.libUtils  import simswan as swan
 
@@ -69,6 +69,10 @@ class Model(object):
         # Define forcing conditions: sea, temperature, salinity, wave
         self.force = forceSim.forceSim(self.input, self.pyGrid)
 
+        # Define hydrodynamic conditions
+        self.hydro = hydrodynamic.hydrodynamic(self.input.cKom, self.input.sigma, self.pyGrid.res,
+                                               self.pyGrid.regX, self.pyGrid.regY)
+
         # Define display and wave climate next time step
         self.force.next_display = self.input.tStart
         self.force.next_layer = self.input.tStart + self.force.time_layer
@@ -83,41 +87,7 @@ class Model(object):
 
         # Initialise SWAN
         if self.input.waveOn:
-            wl = self.input.wavelist[self.waveID]
-            cl = self.input.climlist[self.waveID]
-            tw = time.clock()
-            swan.model.init(self.fcomm, self.input.swanFile, self.input.swanInfo,
-                        self.input.swanBot, self.input.swanOut, self.pyGrid.regZ,
-                        self.input.waveWu[wl][cl], self.input.waveWd[wl][cl],
-                        self.pyGrid.res, self.input.waveBase,
-                        self.force.sealevel)
-            if self._rank == 0:
-                print 'Swan model initialisation took %0.02f seconds' %(time.clock()-tw)
-
-            # Define next wave regime
-            # tw = time.clock()
-            # self.waveID += 1
-            # wl = self.input.wavelist[self.waveID]
-            # cl = self.input.climlist[self.waveID]
-            # self.force.wavU, self.force.wavV, self.force.wavH, self.force.wavP, \
-            #     self.force.wavL = swan.model.run(self.fcomm, self.pyGrid.regZ,
-            #                                      self.input.waveWu[wl][cl],
-            #                                      self.input.waveWd[wl][cl],
-            #                                      self.force.sealevel)
-            # if self._rank == 0:
-            #     print 'Swan model run took %0.02f seconds' %(time.clock()-tw)
-
-            # # Define next wave regime
-            # tw = time.clock()
-            # self.waveID += 1
-            # wl = self.input.wavelist[self.waveID]
-            # cl = self.input.climlist[self.waveID]
-            # wavU, wavV, wavH, wavP, wavL = swan.model.run(self.fcomm, self.pyGrid.regZ,
-            #                                                self.input.waveWu[wl][cl],
-            #                                                self.input.waveWd[wl][cl],
-            #                                                self.force.sealevel)
-            # if self._rank == 0:
-            #      print 'Swan model run took %0.02f seconds' %(time.clock()-tw)
+            self.hydro.swan_init(self.input, self.pyGrid.regZ, self.waveID, self.force.sealevel)
 
     def run_to_time(self, tEnd, profile=False, verbose=False):
         """
@@ -174,33 +144,10 @@ class Model(object):
             # Update wave parameters
             if self.input.waveOn:
                 if self.force.next_wave <= self.tNow:
-                    # Loop through the different wave climates and store swan output information
-                    self.force.wclim = self.input.climNb[self.input.wavelist[self.waveID]]
-                    self.force.wavU = []
-                    self.force.wavV = []
-                    self.force.wavD = []
-                    self.force.wavH = []
-                    self.force.Perc = []
-                    for clim in range(self.force.wclim):
-                        # Define next wave regime
-                        tw = time.clock()
-                        self.waveID += 1
-                        wl = self.input.wavelist[self.waveID]
-                        cl = self.input.climlist[self.waveID]
-                        # Run SWAN model
-                        wavU, wavD, H = swan.model.run(self.fcomm, self.pyGrid.regZ, self.input.waveWu[wl][cl],
-                                                    self.input.waveWd[wl][cl], self.force.sealevel)
-                        U = wavU * np.cos(wavD)
-                        V = wavU * np.sin(wavD)
-                        # Store percentage of each climate and induced bottom currents velocity
-                        self.force.wavU.append(U)
-                        self.force.wavV.append(V)
-                        self.force.wavH.append(H)
-                        self.force.wavD.append(wavD)
-                        self.force.Perc.append(self.input.wavePerc[wl][cl])
-                        if self._rank == 0:
-                            print 'Swan model of wave field %d and climatic conditions %d:' %(wl,cl)
-                            print 'took %0.02f seconds to run.' %(time.clock()-tw)
+
+                    # Compute wave field and associated bottom current conditions
+                    self.waveID = self.hydro.swan_run(self.input, self.force, self.pyGrid.regZ, self.waveID)
+
                     # Update next wave time step
                     self.force.next_wave += self.force.time_wave
 

@@ -81,10 +81,14 @@ class xmlParser:
         self.waveOn = False
         self.waveBase = 10000.
         self.waveNb = 0
+        self.cKom = 1.
+        self.sigma = 1.
         self.waveTime = None
         self.wavePerc = None
         self.waveWu = None
         self.waveWd = None
+        self.waveBrk = None
+        self.storm = None
         self.wavelist = None
         self.climlist = None
 
@@ -478,6 +482,14 @@ class xmlParser:
                 self.waveNb = int(element.text)
             else:
                 raise ValueError('The number of wave temporal events needs to be defined.')
+            element = None
+            element = wavefield.find('cKom')
+            if element is not None:
+                self.cKom = float(element.text)
+            element = None
+            element = wavefield.find('sigma')
+            if element is not None:
+                self.sigma = float(element.text)
         else:
             self.waveNb = 0
 
@@ -487,6 +499,8 @@ class xmlParser:
             self.waveWd = []
             self.waveWu = []
             self.wavePerc = []
+            self.waveBrk = []
+            self.storm = []
             self.waveTime = numpy.empty((tmpNb,2))
             self.climNb = numpy.empty(tmpNb, dtype=int)
             w = 0
@@ -525,6 +539,8 @@ class xmlParser:
                     listPerc = []
                     listWu = []
                     listWd = []
+                    listStorm = []
+                    listBreak = []
                     id = 0
                     sumPerc = 0.
                     for clim in wavedata.iter('climate'):
@@ -559,11 +575,31 @@ class xmlParser:
                                 raise ValueError('Wave event %d wind direction needs to be set between 0 and 360.'%w)
                         else:
                             raise ValueError('Wave event %d is missing wind direction argument.'%w)
+                        element = None
+                        element = clim.find('break')
+                        if element is not None:
+                            listBreak.append(float(element.text))
+                            if listBreak[id] > 0:
+                                raise ValueError('Wave event %d wave breaking depth needs to be negative.'%w)
+                        else:
+                            raise ValueError('Wave event %d is missing wave breaking depth argument.'%w)
+                        element = None
+                        element = clim.find('storm')
+                        if element is not None:
+                            listStorm.append(int(element.text))
+                            if listStorm[id] > 1:
+                                listStorm[id] = 1
+                            if listStorm[id] < 0:
+                                listStorm[id] = 0
+                        else:
+                            raise ValueError('Wave event %d is missing storm argument.'%w)
                         id += 1
                     w += 1
                     self.wavePerc.append(listPerc)
                     self.waveWu.append(listWu)
                     self.waveWd.append(listWd)
+                    self.waveBrk.append(listBreak)
+                    self.storm.append(listStorm)
                 else:
                     raise ValueError('Wave event %d is missing.'%w)
 

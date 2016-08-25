@@ -15,4 +15,5 @@ from .forcing import forceSim
 from .simulation import outputGrid
 from .simulation import map2strat
 from .simulation import raster2surf
+from .simulation import hydrodynamic
 from .libUtils import *
