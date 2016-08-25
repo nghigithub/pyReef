@@ -204,7 +204,7 @@
 							<!-- Wave breaking depth [m] -->
 				      <break>-5</break>
 							<!-- Storm (1) or recovery period (0) -->
-				      <storm>1</storm>
+				      <storm>0</storm>
 					</climate>
 			</wave>
 

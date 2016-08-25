@@ -130,7 +130,7 @@ class hydrodynamic:
                 cV = wavU * numpy.sin(wavD)
 
             if self.rank == 0:
-                print 'Swan model of wave field %d and climatic conditions %d:' %(wl,cl)
+                print 'Swan model of waves field %d and climatic conditions %d:' %(wl,cl)
                 print 'took %0.02f seconds to run.' %(time.clock()-tw)
 
             # Compute long-shore velocity field
