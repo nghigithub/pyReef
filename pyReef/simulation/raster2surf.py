@@ -89,9 +89,9 @@ class raster2surf:
         data = pandas.read_csv(self.inputfile, sep=self.delimiter, engine='c',
                                header=None, na_filter=False,
                                dtype=numpy.float, low_memory=False)
-        demX = data.values[:,1]
-        demY = data.values[:,2]
-        demZ = data.values[:,3]
+        demX = data.values[:,0]
+        demY = data.values[:,1]
+        demZ = data.values[:,2]
         demRes = demX[1]-demX[0]
         minX = demX.min()
         maxX = demX.max()

@@ -4,7 +4,7 @@
 			<!-- Regular grid structure -->
 			<grid>
 					<!-- Digital elevation model file path -->
-					<demfile>data/gab_topo.nodes</demfile>
+					<demfile>data/dem25mOTI.csv</demfile>
 					<!-- Optional parameter (integer) used to change model resolution.
 							 The default value is set to 1. Factor above 1 will decrease
 							 the resolution accordingly and factor between 0 and 1 will
@@ -96,7 +96,7 @@
 			-->
 			<sea>
 					<!-- Constant sea-level value [m] -->
-				  <val>-50.</val>
+				  <val>1.5</val>
 				  <!-- Sea-level curve - (optional). The file is made of 2 columns:
 									- first column: the time in year (increasing order)
 									- second column: the sea-level position for the considered time [m]
@@ -173,7 +173,7 @@
 			<!-- Wave global parameters structure -->
 			<waveglobal>
 					<!-- Maximum depth for wave influence (m)-->
-				  <base>50.0</base>
+				  <base>40.0</base>
 					<!-- Number of wave climate temporal events. -->
 				  <events>2</events>
 					<!-- Longshore current velocity coefficient based on Komar (76). -->
@@ -200,9 +200,9 @@
 				      <windv>10</windv>
 							<!-- Wind direction at 10 m elevation in degrees from the
 									 X-axis (horizontal) anti-clock wise -->
-				      <dir>180</dir>
+				      <dir>120</dir>
 							<!-- Wave breaking depth [m] -->
-				      <break>-5</break>
+				      <break>-1</break>
 							<!-- Storm (1) or recovery period (0) -->
 				      <storm>0</storm>
 					</climate>
