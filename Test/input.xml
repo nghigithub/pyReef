@@ -9,7 +9,7 @@
 							 The default value is set to 1. Factor above 1 will decrease
 							 the resolution accordingly and factor between 0 and 1 will
 							 increase it.  -->
-					<resfactor>1.</resfactor>
+					<resfactor>2.</resfactor>
 			</grid>
 
 			<!-- Simulation time structure -->
@@ -17,7 +17,7 @@
 					<!-- Simulation start time [a] -->
 					<start>0.</start>
 					<!-- Simulation end time [a] -->
-					<end>0.5</end>
+					<end>1.</end>
 					<!-- Time step [a] -->
 					<dt>0.5</dt>
 					<!-- Wave interval [a] -->
@@ -173,9 +173,9 @@
 			<!-- Wave global parameters structure -->
 			<waveglobal>
 					<!-- Maximum depth for wave influence (m)-->
-				  <base>40.0</base>
+				  <base>80.0</base>
 					<!-- Number of wave climate temporal events. -->
-				  <events>2</events>
+				  <events>3</events>
 					<!-- Longshore current velocity coefficient based on Komar (76). -->
 					<cKom>2.7</cKom>
 					<!-- Gaussian filter coefficient for longshore current intensity smoothing. -->
@@ -189,16 +189,18 @@
 					<!-- Wave start time [a] -->
 			    <start>0</start>
 					<!-- Wave end time [a] -->
-			    <end>1</end>
+			    <end>0.5</end>
 					<!-- Wave climates number -->
 					<climNb>1</climNb>
 					<!-- Climatic wave definition based on wind parameters. -->
 					<climate>
 							<!-- Percentage of time this event is active during the time interval -->
 				    	<perc>0.6</perc>
-							<!-- Wind velocity at 10 metres elevation [m/s] -->
-				      <windv>10</windv>
-							<!-- Wind direction at 10 m elevation in degrees from the
+							<!-- Significant wave height (in m) -->
+				      <hs>4</hs>
+							<!-- Characteristic period of the energy spectrum (s) -->
+				      <per>7</per>
+							<!-- Wave direction in degrees (between 0 and 360) from the
 									 X-axis (horizontal) anti-clock wise -->
 				      <dir>120</dir>
 							<!-- Wave breaking depth [m] -->
@@ -207,7 +209,30 @@
 				      <storm>0</storm>
 					</climate>
 			</wave>
-
+			<wave>
+					<!-- Wave start time [a] -->
+			    <start>0.5</start>
+					<!-- Wave end time [a] -->
+			    <end>1.0</end>
+					<!-- Wave climates number -->
+					<climNb>1</climNb>
+					<!-- Climatic wave definition based on wind parameters. -->
+					<climate>
+							<!-- Percentage of time this event is active during the time interval -->
+				    	<perc>0.6</perc>
+							<!-- Significant wave height (in m) -->
+				      <hs>3</hs>
+							<!-- Characteristic period of the energy spectrum (s) -->
+				      <per>7</per>
+							<!-- Wave direction in degrees (between 0 and 360) from the
+									 X-axis (horizontal) anti-clock wise -->
+				      <dir>270</dir>
+							<!-- Wave breaking depth [m] -->
+				      <break>-1</break>
+							<!-- Storm (1) or recovery period (0) -->
+				      <storm>0</storm>
+					</climate>
+			</wave>
 			<!-- Wave definition based on wave global structure.
 					 The wave field needs to be ordered by increasing start time.
 				 	 The time needs to be continuous between each field without overlaps. -->
@@ -222,11 +247,13 @@
 					<climate>
 							<!-- Percentage of time this event is active during the time interval -->
 				    	<perc>0.3</perc>
-							<!-- Wind velocity at 10 metres elevation [m/s] -->
-				      <windv>40</windv>
-							<!-- Wind direction at 10 m elevation in degrees from the
+							<!-- Significant wave height (in m) -->
+				      <hs>4</hs>
+							<!-- Characteristic period of the energy spectrum (s) -->
+				      <per>7</per>
+							<!-- Wave direction in degrees (between 0 and 360) from the
 									 X-axis (horizontal) anti-clock wise -->
-				      <dir>0</dir>
+				      <dir>120</dir>
 							<!-- Wave breaking depth [m] -->
 				      <break>-5</break>
 							<!-- Storm (1) or recovery period (0) -->
@@ -236,11 +263,13 @@
 					<climate>
 							<!-- Percentage of time this event is active during the time interval -->
 				      <perc>0.5</perc>
-							<!-- Wind velocity at 10 metres elevation [m/s] -->
-				      <windv>8</windv>
-							<!-- Wind direction at 10 m elevation in degrees from the
-							     X-axis (horizontal) anti-clock wise -->
-				      <dir>24</dir>
+							<!-- Significant wave height (in m) -->
+				      <hs>4</hs>
+							<!-- Characteristic period of the energy spectrum (s) -->
+				      <per>7</per>
+							<!-- Wave direction in degrees (between 0 and 360) from the
+									 X-axis (horizontal) anti-clock wise -->
+				      <dir>120</dir>
 							<!-- Wave breaking depth [m] -->
 				      <break>-5</break>
 							<!-- Storm (1) or recovery period (0) -->

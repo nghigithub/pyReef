@@ -32,7 +32,7 @@ module SimWaves
     !  Decomposition specification for SWAN Model
     type(REEF_WADecomp),dimension(:),allocatable::wdcp
 
-    real,dimension(6)::hcast
+    real,dimension(3)::hcast
 
     public
 
@@ -94,6 +94,7 @@ contains
         mx_y=stratal_dx*(stratal_y-1)
         open(iu,file=swaninput,status="replace",action="write",iostat=ios)
         write(iu,'(a17)') "PROJECT ' ' 'S01' "
+        write(iu,'(a24)') "SET 0 90 0.05 200 3 9.81"
         write(iu,102) "CGRID REG",stratal_xo,stratal_yo,0,mx_x,mx_y,stratal_x-1,stratal_y-1,"CIRCLE 36 0.05 1.0"
 102     format(a9,1x,f12.3,1x,f12.3,1x,i1,1x,f12.3,1x,f12.3,1x,i4,1x,i4,1x,a19)
         write(iu,103) "INPGRID BOTTOM REG",stratal_xo,stratal_yo,0,1,1,mx_x,mx_y,'EXC -999999.000'
@@ -104,22 +105,28 @@ contains
         call append_str(stg1,stg2)
         write(iu,*)trim(stg1)
         write(iu,'(a42)') "BOUNd SHAPESPEC JONSWAP 3.3 PEAK DSPR DEGR"
+        write(iu,'(a25,3f12.3)') 'BOUNdspec SIDE S CCW PAR ',forecast_param(1:3)
+        write(iu,'(a25,3f12.3)') 'BOUNdspec SIDE N CCW PAR ',forecast_param(1:3)
+        write(iu,'(a25,3f12.3)') 'BOUNdspec SIDE W CCW PAR ',forecast_param(1:3)
+        write(iu,'(a25,3f12.3)') 'BOUNdspec SIDE E CCW PAR ',forecast_param(1:3)
         write(iu,'(a7)') 'DIFFRAC'
-        write(iu,'(a8)') 'FRICTION'
+        !write(iu,'(a8)') 'FRICTION'
         !write(iu,'(a26)') 'BREAKING CONSTANT 1.1 0.73'
         !write(iu,'(a8)') 'WCAPPING'
-        !write(iu,'(a8)') 'OFF QUAD'
-        write(iu,'(a4)') 'GEN1'
+        write(iu,'(a4)') 'GEN3'
+        write(iu,'(a8)') 'OFF QUAD'
         !write(iu,'(a4)') 'QUAD'
         !write(iu,'(a10)') 'GEN3 AGROW'
-        !write(iu,'(a10)') 'OFF BNDCHK'
+        write(iu,'(a10)') 'OFF BNDCHK'
+        write(iu,'(a9)') 'OFF WINDG'
         write(iu,'(a15,1x,i1,1x,i4,1x,i1,1x,i4)')"GROUP 'gf' SUBG",0,stratal_x-1,0,stratal_y-1
         stg1="TABLE 'gf' IND '"
         call append_str(stg1,swanout)
         stg2="' XP YP DIR UBOT HS PER WLEN"
         call append_str(stg1,stg2)
         write(iu,*)trim(stg1)
-        write(iu,'(a5,2f12.3)') 'WIND ',forecast_param(1:2)
+        !write(iu,'(a5,2f12.3)') 'WIND ',forecast_param(1:2)
+        !write(iu,'(a14)') 'WIND 0.05 120.'
         write(iu,'(a7)') 'COMPUTE'
         close(iu)
         open(iu,file=swanbot,status="replace",action="write",iostat=ios)
@@ -155,7 +162,7 @@ contains
       ! Define forcing waves parameters
       call import_bathymetry
 
-      hcast(1:2)=forecast_param(1:2)
+      hcast(1:3)=forecast_param(1:3)
       call swan_run(hcast)
       call exportSwanData
 

@@ -85,7 +85,8 @@ class xmlParser:
         self.sigma = 1.
         self.waveTime = None
         self.wavePerc = None
-        self.waveWu = None
+        self.waveWh = None
+        self.waveWp = None
         self.waveWd = None
         self.waveBrk = None
         self.storm = None
@@ -496,8 +497,9 @@ class xmlParser:
         # Extract wave field structure information
         if self.waveNb > 0:
             tmpNb = self.waveNb
+            self.waveWh = []
+            self.waveWp = []
             self.waveWd = []
-            self.waveWu = []
             self.wavePerc = []
             self.waveBrk = []
             self.storm = []
@@ -537,7 +539,8 @@ class xmlParser:
                         raise ValueError('Wave event %d duration need to be a multiple of the wave interval.'%w)
 
                     listPerc = []
-                    listWu = []
+                    listWh = []
+                    listWp = []
                     listWd = []
                     listStorm = []
                     listBreak = []
@@ -558,13 +561,21 @@ class xmlParser:
                         else:
                             raise ValueError('Wave event %d is missing percentage argument.'%w)
                         element = None
-                        element = clim.find('windv')
+                        element = clim.find('hs')
                         if element is not None:
-                            listWu.append(float(element.text))
-                            if listWu[id] < 0:
-                                raise ValueError('Wave event %d wind velocity cannot be negative.'%w)
+                            listWh.append(float(element.text))
+                            if listWh[id] < 0:
+                                raise ValueError('Wave event %d significant wave height cannot be negative.'%w)
                         else:
-                            raise ValueError('Wave event %d is missing wind velocity argument.'%w)
+                            raise ValueError('Wave event %d is missing significant wave height argument.'%w)
+                        element = None
+                        element = clim.find('per')
+                        if element is not None:
+                            listWp.append(float(element.text))
+                            if listWh[id] < 0:
+                                raise ValueError('Wave event %d wave period cannot be negative.'%w)
+                        else:
+                            raise ValueError('Wave event %d is missing wave period argument.'%w)
                         element = None
                         element = clim.find('dir')
                         if element is not None:
@@ -596,7 +607,8 @@ class xmlParser:
                         id += 1
                     w += 1
                     self.wavePerc.append(listPerc)
-                    self.waveWu.append(listWu)
+                    self.waveWh.append(listWh)
+                    self.waveWp.append(listWp)
                     self.waveWd.append(listWd)
                     self.waveBrk.append(listBreak)
                     self.storm.append(listStorm)

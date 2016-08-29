@@ -17,7 +17,7 @@ from pyReef.model import Model
 base_path = '.'
 xml_name = 'input.xml'
 
-#run_years = int(sys.argv[1])
+run_years = float(sys.argv[1])
 
 # change into current data directory
 os.chdir(base_path)
@@ -29,5 +29,5 @@ reef = Model()
 
 reef.load_xml(xml_name)
 
-#print model.run_to_time(run_years)
+print reef.run_to_time(run_years)
 #print 'run to %s years finished in %s seconds' % (run_years, time.time() - start_time)

@@ -38,6 +38,7 @@ class hydrodynamic:
         self.CKomar = CKomar
         self.sigma = sigma
         self.gravity = 9.81
+        self.hydroH = None
 
         self.xv = xv
         self.yv = yv
@@ -73,8 +74,9 @@ class hydrodynamic:
          wl = input.wavelist[wID]
          cl = input.climlist[wID]
          swan.model.init(self.fcomm, input.swanFile, input.swanInfo,
-                        input.swanBot, input.swanOut, z, input.waveWu[wl][cl],
-                        input.waveWd[wl][cl], self.res, input.waveBase, sl)
+                        input.swanBot, input.swanOut, z, input.waveWh[wl][cl],
+                        input.waveWp[wl][cl], input.waveWd[wl][cl], self.res,
+                        input.waveBase, sl)
 
          return
 
@@ -117,8 +119,10 @@ class hydrodynamic:
             cl = input.climlist[wID]
 
             # Run SWAN model
-            wavU, wavD, H = swan.model.run(self.fcomm, z, input.waveWu[wl][cl],
-                                        input.waveWd[wl][cl], force.sealevel)
+            wavU, wavD, H = swan.model.run(self.fcomm, z, input.waveWh[wl][cl],
+                                           input.waveWp[wl][cl], input.waveWd[wl][cl],
+                                           force.sealevel)
+            self.hydroH = H
 
             # Define cross-shore current
             if input.storm[wl][cl] == 0:
