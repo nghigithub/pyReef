@@ -29,5 +29,5 @@ reef = Model()
 
 reef.load_xml(xml_name)
 
-print reef.run_to_time(run_years)
+reef.run_to_time(run_years)
 #print 'run to %s years finished in %s seconds' % (run_years, time.time() - start_time)

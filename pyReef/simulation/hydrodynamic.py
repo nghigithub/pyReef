@@ -38,7 +38,8 @@ class hydrodynamic:
         self.CKomar = CKomar
         self.sigma = sigma
         self.gravity = 9.81
-        self.hydroH = None
+        #self.longshoreU = None
+        #self.longshoreV = None
 
         self.xv = xv
         self.yv = yv
@@ -103,6 +104,7 @@ class hydrodynamic:
 
          force.wavU = []
          force.wavV = []
+         force.wavH = []
          #force.longU = []
          #force.longD = []
          force.Perc = []
@@ -122,14 +124,19 @@ class hydrodynamic:
             wavU, wavD, H = swan.model.run(self.fcomm, z, input.waveWh[wl][cl],
                                            input.waveWp[wl][cl], input.waveWd[wl][cl],
                                            force.sealevel)
-            self.hydroH = H
-
             # Define cross-shore current
-            if input.storm[wl][cl] == 0:
+            lvl = input.waveBrk[wl][cl]
+            if cl == 0:
+                storm = input.storm[wl-1][cl]
+            else:
+                storm = input.storm[wl][cl-1]
+
+            if storm == 0:
                 cU = wavU * numpy.cos(wavD)
                 cV = wavU * numpy.sin(wavD)
             else:
-                wavD += numpy.pi
+                r,c = numpy.where(z-force.sealevel>2*lvl)
+                wavD[r,c] += numpy.pi
                 cU = wavU * numpy.cos(wavD)
                 cV = wavU * numpy.sin(wavD)
 
@@ -139,7 +146,6 @@ class hydrodynamic:
 
             # Compute long-shore velocity field
             tw = time.clock()
-            lvl = input.waveBrk[wl][cl]
             brk = [lvl/2.,lvl,2*lvl]
             slongV, slongD = self._compute_longshore_velocity(z-force.sealevel, wavD, wavU, brk)
 
@@ -147,9 +153,13 @@ class hydrodynamic:
             lU = slongV * numpy.cos(slongD)
             lV = slongV * numpy.sin(slongD)
 
+            #self.longshoreU = lU
+            #self.longshoreV = lV
+
             # Store percentage of each climate and induced bottom currents velocity
             force.wavU.append(cU+lU)
             force.wavV.append(cV+lV)
+            force.wavH.append(H)
             force.Perc.append(input.wavePerc[wl][cl])
 
             if self.rank == 0:

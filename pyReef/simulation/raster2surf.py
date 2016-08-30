@@ -113,7 +113,6 @@ class raster2surf:
             regZ = numpy.reshape(demZ,(len(regX),len(regY)),order='F')
             interpolate_fct = interpolate.interp2d(regY,regX,regZ,kind='cubic')
 
-
         minX -= self.res
         maxX += self.res
         minY -= self.res
@@ -131,8 +130,12 @@ class raster2surf:
             tmpZ = numpy.reshape(demZ,(nx,ny),order='F')
 
         # Define internal nodes coordinates
-        self.regX = numpy.linspace(minX,maxX,self.nx)
-        self.regY = numpy.linspace(minY,maxY,self.ny)
+        #self.regX = numpy.linspace(minX,maxX,self.nx)
+        #self.regY = numpy.linspace(minY,maxY,self.ny)
+        self.regX = numpy.arange(minX,maxX+self.res,self.res)
+        self.regY = numpy.arange(minY,maxY+self.res,self.res)
+        self.nx = len(self.regX)
+        self.ny = len(self.regY)
         self.regZ = numpy.zeros((self.nx,self.ny))
         self.regZ[1:1+tmpZ.shape[0],1:1+tmpZ.shape[1]] = tmpZ
 

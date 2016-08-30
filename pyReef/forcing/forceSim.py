@@ -58,7 +58,8 @@ class forceSim:
 
         self.wclim = 0
         self.wavU = None
-        self.wavV = None
+        self.wavU = None
+        self.wavH = None
         # self.longD = None
         self.wavPerc = None
         # self.longU = None

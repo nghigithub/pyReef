@@ -2,7 +2,7 @@ import time
 import numpy as np
 import mpi4py.MPI as mpi
 
-from pyReef import (hydrodynamic, forceSim, outputGrid, raster2surf, map2strat, xmlParser)
+from pyReef import (modelPlot, hydrodynamic, forceSim, outputGrid, raster2surf, map2strat, xmlParser)
 
 from pyReef.libUtils  import simswan as swan
 
@@ -58,6 +58,7 @@ class Model(object):
 
         # From DEM grid create pyReef surface grid and partition.
         self.pyGrid = raster2surf.raster2surf(inputfile=self.input.demfile, resRecFactor=self.input.Afactor)
+        self.mPlot = modelPlot.modelPlot(x=self.pyGrid.regX, y=self.pyGrid.regY)
 
         # Build pyReef stratigraphic mesh.
         self.pyStrat = map2strat.map2strat(self.input, self.pyGrid)

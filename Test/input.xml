@@ -203,12 +203,16 @@
 							<!-- Wave direction in degrees (between 0 and 360) from the
 									 X-axis (horizontal) anti-clock wise -->
 				      <dir>120</dir>
-							<!-- Wave breaking depth [m] -->
-				      <break>-1</break>
+					  <!-- Wave breaking depth [m] -->
+				      <break>-3</break>
 							<!-- Storm (1) or recovery period (0) -->
-				      <storm>0</storm>
+				      <storm>1</storm>
 					</climate>
 			</wave>
+
+			<!-- Wave definition based on wave global structure.
+					 The wave field needs to be ordered by increasing start time.
+				 	 The time needs to be continuous between each field without overlaps. -->
 			<wave>
 					<!-- Wave start time [a] -->
 			    <start>0.5</start>
@@ -228,11 +232,12 @@
 									 X-axis (horizontal) anti-clock wise -->
 				      <dir>270</dir>
 							<!-- Wave breaking depth [m] -->
-				      <break>-1</break>
+				      <break>-3</break>
 							<!-- Storm (1) or recovery period (0) -->
 				      <storm>0</storm>
 					</climate>
 			</wave>
+
 			<!-- Wave definition based on wave global structure.
 					 The wave field needs to be ordered by increasing start time.
 				 	 The time needs to be continuous between each field without overlaps. -->

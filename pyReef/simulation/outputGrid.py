@@ -99,18 +99,19 @@ class outputGrid:
             f.create_dataset('z',shape=(self.nbPts,1), dtype='float32', compression='gzip')
             f["z"][:,0] = numpy.ravel(elev[self.i1:self.i2,self.j1:self.j2],order='F')
             if force.wclim > 0:
-                # Write wave velocity along X
-                f.create_dataset('wu',shape=(self.nbPts,1), dtype='float32', compression='gzip')
-                f["wu"][:,0] = numpy.ravel(force.wavU[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
-                # Write wave velocity along Y
-                f.create_dataset('wv',shape=(self.nbPts,1), dtype='float32', compression='gzip')
-                f["wv"][:,0] = numpy.ravel(force.wavV[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
-                # Write longshore current velocity
-                # f.create_dataset('lu',shape=(self.nbPts,1), dtype='float32', compression='gzip')
-                # f["lu"][:,0] = numpy.ravel(force.longU[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
-                # Write wave velocity along Y
-                # f.create_dataset('ld',shape=(self.nbPts,1), dtype='float32', compression='gzip')
-                # f["ld"][:,0] = numpy.ravel(force.longD[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
+                for p in range(force.wclim):
+                    # Write bottom current along X
+                    st = 'wu'+str(p)
+                    f.create_dataset(st,shape=(self.nbPts,1), dtype='float32', compression='gzip')
+                    f[st][:,0] = numpy.ravel(force.wavU[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
+                    # Write bottom current velocity along Y
+                    st = 'wv'+str(p)
+                    f.create_dataset(st,shape=(self.nbPts,1), dtype='float32', compression='gzip')
+                    f[st][:,0] = numpy.ravel(force.wavV[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
+                    # Write wave height
+                    st = 'wh'+str(p)
+                    f.create_dataset(st,shape=(self.nbPts,1), dtype='float32', compression='gzip')
+                    f[st][:,0] = numpy.ravel(force.wavH[force.wclim-1][self.i1:self.i2,self.j1:self.j2],order='F')
 
         self.comm.Barrier()
 
@@ -197,16 +198,16 @@ class outputGrid:
              if wclim > 0:
                  f.write('         <Attribute Type="Scalar" Center="Node" Name="Ux">\n')
                  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
-                 f.write('>%s:/wu</DataItem>\n'%(datfile))
+                 f.write('>%s:/wu0</DataItem>\n'%(datfile))
                  f.write('         </Attribute>\n')
                  f.write('         <Attribute Type="Scalar" Center="Node" Name="Uy">\n')
                  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
-                 f.write('>%s:/wv</DataItem>\n'%(datfile))
+                 f.write('>%s:/wv0</DataItem>\n'%(datfile))
                  f.write('         </Attribute>\n')
-                #  f.write('         <Attribute Type="Scalar" Center="Node" Name="LongshoreU">\n')
-                #  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
-                #  f.write('>%s:/lu</DataItem>\n'%(datfile))
-                #  f.write('         </Attribute>\n')
+                 f.write('         <Attribute Type="Scalar" Center="Node" Name="wH">\n')
+                 f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
+                 f.write('>%s:/wh0</DataItem>\n'%(datfile))
+                 f.write('         </Attribute>\n')
                 #  f.write('         <Attribute Type="Scalar" Center="Node" Name="LongshoreD">\n')
                 #  f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1" '%(self.nx[p],self.ny))
                 #  f.write('>%s:/ld</DataItem>\n'%(datfile))
