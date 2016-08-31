@@ -35,9 +35,25 @@ class hydrodynamic:
         self.comm = mpi.COMM_WORLD
         self.fcomm = mpi.COMM_WORLD.py2f()
 
+        self.morphDT = None
         self.CKomar = CKomar
         self.sigma = sigma
         self.gravity = 9.81
+        self.porosity = None
+        self.dh = None
+        self.d50 = None
+        self.Urms = None
+        self.currentU = None
+        self.qt = None
+        self.bedCx = None
+        self.bedCy = None
+        self.deprate = None
+        self.dSVR = None
+        self.Dstar = None
+        self.rho_water = None
+        self.rho_sed = None
+        self.relativeDens = None
+        self.kinematic_viscosity = 0.801e-6
         #self.longshoreU = None
         #self.longshoreV = None
 
@@ -72,6 +88,16 @@ class hydrodynamic:
             Sealevel elevation.
          """
 
+         # Define variables for sediment transport
+         self.d50 = input.faciesDiam[-1]
+         self.rho_sed = input.sedDensity[-1]
+         self.rho_water = input.waterD
+         self.porosity = input.sedPorosity[-1]
+
+         self.relativeDens = self.rho_sed/self.rho_water
+         self.Dstar = self.d50*(self.gravity*(self.relativeDens-1.)/self.kinematic_viscosity**2)**(1./3.)
+         self.dSVR = ((self.relativeDens-1.)*self.gravity*self.d50)**1.2
+
          wl = input.wavelist[wID]
          cl = input.climlist[wID]
          swan.model.init(self.fcomm, input.swanFile, input.swanInfo,
@@ -105,9 +131,10 @@ class hydrodynamic:
          force.wavU = []
          force.wavV = []
          force.wavH = []
-         #force.longU = []
-         #force.longD = []
          force.Perc = []
+
+         self.Urms = []
+         self.currentU = []
 
          # Loop through the different wave climates and store swan output information
          force.wclim = input.climNb[input.wavelist[wID]]
@@ -124,6 +151,7 @@ class hydrodynamic:
             wavU, wavD, H = swan.model.run(self.fcomm, z, input.waveWh[wl][cl],
                                            input.waveWp[wl][cl], input.waveWd[wl][cl],
                                            force.sealevel)
+            self.Urms.append(wavU)
             # Define cross-shore current
             lvl = input.waveBrk[wl][cl]
             if cl == 0:
@@ -140,6 +168,7 @@ class hydrodynamic:
                 cU = wavU * numpy.cos(wavD)
                 cV = wavU * numpy.sin(wavD)
 
+
             if self.rank == 0:
                 print 'Swan model of waves field %d and climatic conditions %d:' %(wl,cl)
                 print 'took %0.02f seconds to run.' %(time.clock()-tw)
@@ -152,9 +181,7 @@ class hydrodynamic:
             # Long-shore current
             lU = slongV * numpy.cos(slongD)
             lV = slongV * numpy.sin(slongD)
-
-            #self.longshoreU = lU
-            #self.longshoreV = lV
+            self.currentU.append(slongV)
 
             # Store percentage of each climate and induced bottom currents velocity
             force.wavU.append(cU+lU)
@@ -167,6 +194,210 @@ class hydrodynamic:
                 print 'took %0.02f seconds to run.' %(time.clock()-tw)
 
          return wID
+
+    def _assignBCs(self, z):
+        """
+        Pads the boundaries of a grid. Boundary condition pads the boundaries
+        with equivalent values to the data margins, e.g. x[-1,1] = x[1,1].
+        It creates a grid 2 rows and 2 columns larger than the input.
+        """
+
+        bc = numpy.zeros((z.shape[0]+2,z.shape[1]+2))
+        bc[1:-1,1:-1] = z
+
+        # Assign boundary conditions - sides
+        bc[0, 1:-1] = z[0, :]
+        bc[-1, 1:-1] = z[-1, :]
+        bc[1:-1, 0] = z[:, 0]
+        bc[1:-1, -1] = z[:,-1]
+
+        # Assign boundary conditions - corners
+        bc[0, 0] = z[0, 0]
+        bc[0, -1] = z[0, -1]
+        bc[-1, 0] = z[-1, 0]
+        bc[-1, -1] = z[-1, 0]
+
+        return bc
+
+    def _calcFiniteSlopes(self, z):
+        """
+        Calculate slope with 2nd order/centered difference method.
+        """
+
+        # Assign boundary conditions
+        bc = self._assignBCs(z)
+
+        # Compute finite differences
+        sx = (bc[1:-1, 2:] - bc[1:-1, :-2])/(2*self.res)
+        sy = (bc[2:,1:-1] - bc[:-2, 1:-1])/(2*self.res)
+        smag = numpy.sqrt(sx**2 + sy**2)
+
+        return smag
+
+    def sediment_transport_components(self, input, force, z):
+         """
+         This function computes the total load sediment transport in combined waves and currents
+         based on Soulsby - Van Rijn
+
+         Parameters
+         ----------
+
+         variable : input
+            Simulation input parameters time step.
+
+         variable: force
+            Forcings conditions.
+
+         variable: z
+            Elevation.
+         """
+
+         # Compute slope
+         smag = self._calcFiniteSlopes(z)
+
+         # Initialise total load and deposition rate component
+         self.qt = []
+         self.bedCx = []
+         self.bedCy = []
+         self.deprate = []
+         self.morphDT = []
+
+         # Loop through the different wave climates and store swan output information
+         depth = force.sealevel - z
+
+         As = numpy.zeros((z.shape[0],z.shape[1]))
+         CD = numpy.zeros((z.shape[0],z.shape[1]))
+         Ucr = numpy.zeros((z.shape[0],z.shape[1]))
+         qt = numpy.zeros((z.shape[0],z.shape[1]))
+
+         row,col = numpy.where(depth>0.)
+
+         As[row,col] = 0.005*depth[row,col]*(self.d50/depth[row,col])**1.2
+         As[row,col] += 0.012*self.d50*self.Dstar**(-0.6)
+         As /= self.dSVR
+         CD[row,col] = (0.4/(numpy.log(depth[row,col]/0.006)-1.))**2
+
+         if self.d50 <= 0.0005:
+             Ucr[row,col] = 0.19*numpy.log10(4.*depth[row,col]/self.d50)*self.d50**0.1
+         else:
+             Ucr[row,col] = 8.5*numpy.log10(4.*depth[row,col]/self.d50)*self.d50**0.6
+         Ucr[Ucr<0] = 0.
+         frac = (1.-self.porosity)*self.res
+         tmp = 1/(1.-self.porosity)
+         for clim in range(len(self.Urms)):
+             # Define total load from Soulsby Van Rijn formulation
+             #speed = numpy.sqrt(force.wavU[clim]**2+force.wavV[clim]**2)
+             speed = self.currentU[clim]
+             qt[row,col] = As[row,col] * speed[row,col] * ( numpy.sqrt(speed[row,col]**2 + \
+                0.018*self.Urms[clim][row,col]/CD[row,col]) - Ucr[row,col] )**2.4 * (1.-1.6*smag[row,col])
+             qt[numpy.isnan(qt)] = 0.
+             self.qt.append(qt)
+
+             # Compute sedimentation rate
+             # qx(i-1,j) - qx(i,j)
+             dqtx = numpy.zeros(qt.shape)
+             dqtx[1:qt.shape[0],:] = -numpy.diff(qt,axis=0)
+             dqtx[0,:] = dqtx[1,:]
+
+             # hx(i-1,j) - hx(i,j)
+             dhx = numpy.zeros(qt.shape)
+             dhx[1:qt.shape[0],:] = -numpy.diff(z,axis=0)
+             dhx[0,:] = dhx[1,:]
+
+             # qy(i,j) - qy(i,j+1)
+             dqty = numpy.zeros(qt.shape)
+             dqty[:,:qt.shape[1]-1] = -numpy.diff(qt,axis=1)
+             dqty[:,-1] = dqty[:,-2]
+
+             # hy(i,j) - hy(i,j+1)
+             dhy = numpy.zeros(qt.shape)
+             dhy[:,:qt.shape[1]-1] = -numpy.diff(z,axis=1)
+             dhy[:,-1] = dhy[:,-2]
+
+             bedCx = dqtx/dhx*tmp
+             bedCx[numpy.isnan(bedCx)] = 0.
+             bedCy = dqty/dhy*tmp
+             bedCy[numpy.isnan(bedCy)] = 0.
+             self.bedCx.append(bedCx)
+             self.bedCy.append(bedCy)
+             self.deprate.append((dqtx+dqty)/frac)
+
+             bedC2 = bedCx**2+bedCy**2
+             r,c = numpy.where(bedC2>0)
+             dtm = self.res / numpy.sqrt(2*bedC2[r,c])
+             self.morphDT.append(dtm.min())
+
+         return
+
+    def bed_elevation_change(self, input, force, z):
+         """
+         This function computes the bed elevation change using the second order Lax Wendroff scheme
+
+         Parameters
+         ----------
+
+         variable : input
+            Simulation input parameters time step.
+
+         variable: force
+            Forcings conditions.
+
+         variable: z
+            Elevation.
+         """
+
+         # Initialise morphological changes
+         self.dh = []
+
+         for clim in range(len(self.Urms)):
+             step = 0
+             tstep = 0
+             totdh = numpy.zeros(z.shape)
+             tm = time.clock()
+             while(tstep<3600.*24):
+                 self.sediment_transport_components(input, force, z)
+                 forceDt = max(self.morphDT[clim],120.)
+
+                 tmp = -forceDt**2 / (4.*self.res)
+                 dh = -forceDt * self.deprate[clim]
+                 rCx = self.deprate[clim] * self.bedCx[clim]
+                 rCy = self.deprate[clim] * self.bedCy[clim]
+
+                 # rCx(i+1,j) - rCx(i-1,j)
+                 tmp1 = numpy.zeros(rCx.shape)
+                 tmp1[1:rCx.shape[0],:] = -numpy.diff(rCx,axis=0)
+                 tmp1[0,:] = tmp1[1,:]
+                 tmp2 = numpy.zeros(rCx.shape)
+                 tmp2[:rCx.shape[0]-1,:] = -numpy.diff(rCx,axis=0)
+                 tmp2[-1,:] = tmp2[-2,:]
+                 sum1 = -(tmp1+tmp2)
+                 sum1[0,:] = sum1[1,:]
+                 sum1[-1,:] = sum1[-2,:]
+
+                 # rCy(i,j+1) - rCy(i,j-1)
+                 tmp1 = numpy.zeros(rCy.shape)
+                 tmp1[:,1:rCy.shape[1]] = -numpy.diff(rCy,axis=1)
+                 tmp1[:,0] = tmp1[:,1]
+                 tmp2 = numpy.zeros(rCy.shape)
+                 tmp2[:,:rCy.shape[1]-1] = -numpy.diff(rCy,axis=1)
+                 tmp2[:,-1] = tmp2[:,-2]
+                 sum2 = -(tmp1+tmp2)
+                 sum2[:,0] = sum2[:,1]
+                 sum2[:,-1] = sum2[:,-2]
+
+                 dh += tmp*(sum1+sum2)
+                 step += 1
+                 tstep += forceDt
+                 totdh += dh
+                 z += dh
+
+             if self.rank == 0:
+                 print 'Morphological change associated to climatic conditions %d:' %(clim)
+                 print 'took %0.02f seconds to run and did %d steps.' %(time.clock()-tm,step)
+
+             self.dh.append(totdh)
+
+         return
 
     def _compute_longshore_velocity(self, z, waved, waveU, lvl):
          """

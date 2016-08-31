@@ -272,6 +272,142 @@ class modelPlot():
 
         return
 
+    def deposition(self, deprate, min=min, max=max, gauss=1, color=cmocean.cm.balance, fsize=(7.5,5), fname=None, dpi=300):
+        """
+        Creates a shaded deposition rate map from pyReef surface raster by considering the
+        illumination source angle and shadows.
+
+        Parameters
+        ----------
+        variable : deprate
+            Deposition rate.
+
+        variable : min, max
+            color bar extent.
+
+        variable : gauss
+            Gaussian filter for smoothing bottom current value.
+
+        variable : color
+            color map from cmocean.
+
+        variable : size
+            Plot size.
+
+        variable : fname
+            Save PNG filename.
+
+        variable : dpi
+            Figure resolution.
+        """
+
+        fig = plt.figure(figsize = fsize)
+        ax = plt.subplot(1, 1, 1)
+
+        # Current map
+        sdeprate = deprate
+        if gauss > 0:
+            sdeprate = gaussian_filter(deprate, gauss)
+
+        # Deposition rate map
+        im = ax.imshow(sdeprate.T, interpolation = 'bilinear', cmap=color,
+                       vmin=min, vmax=max, aspect=1, origin='lower')
+
+        # Colorbar
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="3%", pad=0.05)
+        plt.colorbar(im, cax=cax)
+
+        # Add hillshade surface
+        ax.imshow(self.hillshade.T, interpolation = 'bilinear', origin='lower', cmap='gray', alpha = 0.25, aspect=1)
+
+        # Shoreline contour
+        levels = [0]
+        CS = ax.contour(self.z.T-self.sl, levels, colors='k', origin='lower', linewidths=1)
+
+        # Bathymetric contours
+        levels = [-60.,-50.,-40.,-30.,-20.,-10.]
+        CS = ax.contour(self.z.T-self.sl, levels, colors='k', origin='lower', linewidths=0.5)
+        plt.clabel(CS, inline=1, fontsize=5)
+
+        # Set title
+        ax.set_title('Deposition rate')
+
+        plt.show()
+
+        if fname is not None:
+            fig.savefig(fname, dpi=dpi)
+
+        return
+
+    def morphochange(self, dh, min=min, max=max, gauss=1, color=cmocean.cm.balance, fsize=(7.5,5), fname=None, dpi=300):
+        """
+        Creates a shaded morphological change map from pyReef surface raster by considering the
+        illumination source angle and shadows.
+
+        Parameters
+        ----------
+        variable : deprate
+            Deposition rate.
+
+        variable : min, max
+            color bar extent.
+
+        variable : gauss
+            Gaussian filter for smoothing bottom current value.
+
+        variable : color
+            color map from cmocean.
+
+        variable : size
+            Plot size.
+
+        variable : fname
+            Save PNG filename.
+
+        variable : dpi
+            Figure resolution.
+        """
+
+        fig = plt.figure(figsize = fsize)
+        ax = plt.subplot(1, 1, 1)
+
+        # Current map
+        sdeprate = dh
+        if gauss > 0:
+            sdeprate = gaussian_filter(dh, gauss)
+
+        # Deposition rate map
+        im = ax.imshow(sdeprate.T, interpolation = 'bilinear', cmap=color,
+                       vmin=min, vmax=max, aspect=1, origin='lower')
+
+        # Colorbar
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="3%", pad=0.05)
+        plt.colorbar(im, cax=cax)
+
+        # Add hillshade surface
+        ax.imshow(self.hillshade.T, interpolation = 'bilinear', origin='lower', cmap='gray', alpha = 0.25, aspect=1)
+
+        # Shoreline contour
+        levels = [0]
+        CS = ax.contour(self.z.T-self.sl, levels, colors='k', origin='lower', linewidths=1)
+
+        # Bathymetric contours
+        levels = [-60.,-50.,-40.,-30.,-20.,-10.]
+        CS = ax.contour(self.z.T-self.sl, levels, colors='k', origin='lower', linewidths=0.5)
+        plt.clabel(CS, inline=1, fontsize=5)
+
+        # Set title
+        ax.set_title('Morphological change')
+
+        plt.show()
+
+        if fname is not None:
+            fig.savefig(fname, dpi=dpi)
+
+        return
+
     def waveHeight(self, height, lvls, color=cmocean.cm.thermal, fsize=(7.5,5), fname=None, dpi=300):
         """
         Visualise wave height distribution based on SWAN wave model.

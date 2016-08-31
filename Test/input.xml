@@ -32,18 +32,28 @@
 			<lithofacies>
 					<!-- Number of lithofacies -->
 					<faciesNb>2</faciesNb>
+					<!-- Sea water density [kg/m3] -->
+					<waterD>1010</waterD>
 					<!-- Facies definition -->
 					<facies>
 							<!-- Facies name needs to be lower than 10 characters -->
 				    	<name>'coralgal'</name>
 							<!-- Averaged diameter of facies type [mm] -->
 				      <diam>0.3</diam>
+							<!-- Sediment density [kg/m3] -->
+							<sedD>2650</sedD>
+							<!-- Porosity [kg/m3] -->
+							<porosity>0.4</porosity>
 					</facies>
 					<facies>
 							<!-- Facies name -->
 				    	<name>'sand'</name>
 							<!-- Averaged diameter of facies type [mm] -->
-				      <diam>2.</diam>
+				      <diam>1.</diam>
+							<!-- Sediment density [kg/m3] -->
+							<sedD>2650</sedD>
+							<!-- Porosity [kg/m3] -->
+							<porosity>0.4</porosity>
 					</facies>
 			</lithofacies>
 
@@ -206,7 +216,7 @@
 					  <!-- Wave breaking depth [m] -->
 				      <break>-3</break>
 							<!-- Storm (1) or recovery period (0) -->
-				      <storm>1</storm>
+				      <storm>0</storm>
 					</climate>
 			</wave>
 

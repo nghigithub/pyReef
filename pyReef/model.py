@@ -149,6 +149,9 @@ class Model(object):
                     # Compute wave field and associated bottom current conditions
                     self.waveID = self.hydro.swan_run(self.input, self.force, self.pyGrid.regZ, self.waveID)
 
+                    # Perform morphological changes
+                    self.hydro.bed_elevation_change(self.input, self.force, self.pyGrid.regZ)
+                    
                     # Update next wave time step
                     self.force.next_wave += self.force.time_wave
 

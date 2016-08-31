@@ -49,6 +49,9 @@ class xmlParser:
         self.laytime = None
 
         self.faciesNb = None
+        self.waterD = None
+        self.sedD = None
+        self.porosity = None
         self.faciesName = None
         self.faciesDiam = None
 
@@ -210,7 +213,15 @@ class xmlParser:
                 self.faciesNb = int(element.text)
             else:
                 raise ValueError('Error in the definition of the lithofacies: number of facies is required')
+            element = None
+            element = litho.find('waterD')
+            if element is not None:
+                self.waterD = float(element.text)
+            else:
+                self.waterD = 1010.0
             self.faciesName = numpy.empty(self.faciesNb, dtype="S10")
+            self.sedDensity = numpy.zeros(self.faciesNb, dtype=float)
+            self.sedPorosity = numpy.zeros(self.faciesNb, dtype=float)
             self.faciesDiam = numpy.zeros(self.faciesNb, dtype=float)
             id = 0
             for facies in litho.iter('facies'):
@@ -223,9 +234,21 @@ class xmlParser:
                 else:
                     raise ValueError('Facies name %d is missing in the lithofacies structure.'%id)
                 element = None
+                element = facies.find('sedD')
+                if element is not None:
+                    self.sedDensity[id] = float(element.text)
+                else:
+                    self.sedDensity[id] = 2650.0
+                element = None
+                element = facies.find('porosity')
+                if element is not None:
+                    self.sedPorosity[id] = float(element.text)
+                else:
+                    self.sedPorosity[id] = 0.4
+                element = None
                 element = facies.find('diam')
                 if element is not None:
-                    self.faciesDiam[id] = float(element.text)
+                    self.faciesDiam[id] = float(element.text)*0.001
                 else:
                     raise ValueError('Diameter %d is missing in the lithofacies structure.'%id)
                 id += 1
