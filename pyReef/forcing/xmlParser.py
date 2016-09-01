@@ -40,18 +40,21 @@ class xmlParser:
 
         self.demfile = None
         self.Afactor = 1
+        self.Wfactor = 1
 
         self.tStart = None
         self.tEnd = None
         self.dt = None
         self.tWave = None
+        self.tSed = None
         self.tDisplay = None
         self.laytime = None
 
         self.faciesNb = None
         self.waterD = None
-        self.sedD = None
+        self.density = None
         self.porosity = None
+        self.diffusion = None
         self.faciesName = None
         self.faciesDiam = None
 
@@ -68,6 +71,10 @@ class xmlParser:
         self.tempOn = False
         self.tempval = 25.
         self.tempfile = None
+
+        self.tideOn = False
+        self.tideval = 0.
+        self.tidefile = None
 
         self.phOn = False
         self.phval = 8.1
@@ -90,6 +97,7 @@ class xmlParser:
         self.wavePerc = None
         self.waveWh = None
         self.waveWp = None
+        self.waveWs = None
         self.waveWd = None
         self.waveBrk = None
         self.storm = None
@@ -134,11 +142,19 @@ class xmlParser:
             else:
                 raise ValueError('Error in the definition of the grid structure: DEM file definition is required!')
             element = None
-            element = grid.find('resfactor')
+            element = grid.find('resdem')
             if element is not None:
                 self.Afactor = float(element.text)
             else:
                 self.Afactor = 1.
+            element = None
+            element = grid.find('reswave')
+            if element is not None:
+                self.Wfactor = float(element.text)
+            else:
+                self.Wfactor = 1.
+            if self.Wfactor < 1.:
+                self.Wfactor = 1.
         else:
             raise ValueError('Error in the XmL file: grid structure definition is required!')
 
@@ -172,6 +188,12 @@ class xmlParser:
                 self.tWave = float(element.text)
             else:
                 raise ValueError('Error in the definition of the simulation time: wave interval is required')
+            element = None
+            element = time.find('tsed')
+            if element is not None:
+                self.tSed = float(element.text)*60.
+            else:
+                self.tSed = 3600.
             if Decimal(self.tEnd - self.tStart) % Decimal(self.tWave) != 0.:
                 raise ValueError('Error in the definition of the simulation time: wave interval needs to be a multiple of simulation time.')
             element = None
@@ -220,8 +242,9 @@ class xmlParser:
             else:
                 self.waterD = 1010.0
             self.faciesName = numpy.empty(self.faciesNb, dtype="S10")
-            self.sedDensity = numpy.zeros(self.faciesNb, dtype=float)
-            self.sedPorosity = numpy.zeros(self.faciesNb, dtype=float)
+            self.density = numpy.zeros(self.faciesNb, dtype=float)
+            self.porosity = numpy.zeros(self.faciesNb, dtype=float)
+            self.diffusion = numpy.zeros(self.faciesNb, dtype=float)
             self.faciesDiam = numpy.zeros(self.faciesNb, dtype=float)
             id = 0
             for facies in litho.iter('facies'):
@@ -236,15 +259,21 @@ class xmlParser:
                 element = None
                 element = facies.find('sedD')
                 if element is not None:
-                    self.sedDensity[id] = float(element.text)
+                    self.density[id] = float(element.text)
                 else:
-                    self.sedDensity[id] = 2650.0
+                    self.density[id] = 2650.0
                 element = None
                 element = facies.find('porosity')
                 if element is not None:
-                    self.sedPorosity[id] = float(element.text)
+                    self.porosity[id] = float(element.text)
                 else:
-                    self.sedPorosity[id] = 0.4
+                    self.porosity[id] = 0.4
+                element = None
+                element = facies.find('diffusion')
+                if element is not None:
+                    self.diffusion[id] = float(element.text)
+                else:
+                    self.diffusion[id] = 0.1
                 element = None
                 element = facies.find('diam')
                 if element is not None:
@@ -405,6 +434,29 @@ class xmlParser:
             self.salval = 35.5
             self.salfile = None
 
+        # Extract tidal range structure information
+        tide = None
+        tide = root.find('tides')
+        if tide is not None:
+            self.tideOn = True
+            element = None
+            element = tide.find('val')
+            if element is not None:
+                self.tideval = float(element.text)
+            else:
+                self.tideval = 0.0
+            element = None
+            element = tide.find('curve')
+            if element is not None:
+                self.tidefile = element.text
+                if not os.path.isfile(self.tidefile):
+                    raise ValueError('Tidal range file is missing or the given path is incorrect.')
+            else:
+                self.tidefile = None
+        else:
+            self.tideval = 0.
+            self.tidefile = None
+
         # Extract Tectonic structure information
         tecto = None
         tecto = root.find('tectonic')
@@ -523,6 +575,7 @@ class xmlParser:
             self.waveWh = []
             self.waveWp = []
             self.waveWd = []
+            self.waveWs = []
             self.wavePerc = []
             self.waveBrk = []
             self.storm = []
@@ -565,6 +618,7 @@ class xmlParser:
                     listWh = []
                     listWp = []
                     listWd = []
+                    listWs = []
                     listStorm = []
                     listBreak = []
                     id = 0
@@ -610,6 +664,14 @@ class xmlParser:
                         else:
                             raise ValueError('Wave event %d is missing wind direction argument.'%w)
                         element = None
+                        element = clim.find('spread')
+                        if element is not None:
+                            listWs.append(float(element.text))
+                            if listWs[id] < 0:
+                                raise ValueError('Wave event %d wave spreading cannot be negative.'%w)
+                        else:
+                            listWs.append(0.)
+                        element = None
                         element = clim.find('break')
                         if element is not None:
                             listBreak.append(float(element.text))
@@ -632,6 +694,7 @@ class xmlParser:
                     self.wavePerc.append(listPerc)
                     self.waveWh.append(listWh)
                     self.waveWp.append(listWp)
+                    self.waveWs.append(listWs)
                     self.waveWd.append(listWd)
                     self.waveBrk.append(listBreak)
                     self.storm.append(listStorm)

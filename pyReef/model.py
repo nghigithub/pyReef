@@ -51,6 +51,14 @@ class Model(object):
         # Create the spatial discretisation
         self.build_spatial_model(self.input.demfile, verbose)
 
+        # seed the random number generator consistently on all nodes
+        seed = None
+        if self._rank == 0:
+            # limit to max uint32
+            seed = np.random.mtrand.RandomState().tomaxint() % 0xFFFFFFFF
+        seed = self._comm.bcast(seed, root=0)
+        np.random.seed(seed)
+
     def build_spatial_model(self, filename, verbose):
         """
         Create pyReef surface grid and stratigraphic mesh.
@@ -67,12 +75,12 @@ class Model(object):
         self.outSurf = outputGrid.outputGrid(self.pyGrid, self.input.outDir, self.input.h5file,
                                         self.input.xmffile, self.input.xdmffile)
 
-        # Define forcing conditions: sea, temperature, salinity, wave
+        # Define forcing conditions: sea, temperature, salinity, wave, tides...
         self.force = forceSim.forceSim(self.input, self.pyGrid)
 
         # Define hydrodynamic conditions
         self.hydro = hydrodynamic.hydrodynamic(self.input.cKom, self.input.sigma, self.pyGrid.res,
-                                               self.pyGrid.regX, self.pyGrid.regY)
+                                               self.input.Wfactor, self.pyGrid.regX, self.pyGrid.regY)
 
         # Define display and wave climate next time step
         self.force.next_display = self.input.tStart
@@ -86,9 +94,16 @@ class Model(object):
         if self.input.seaOn:
             self.force.getSea(self.tNow)
 
+        # Get tidal range value
+        if self.input.tideOn:
+            self.force.getTidalRange(self.tNow)
+            tide = self.force.tideval
+        else:
+            tide = 0.
+
         # Initialise SWAN
         if self.input.waveOn:
-            self.hydro.swan_init(self.input, self.pyGrid.regZ, self.waveID, self.force.sealevel)
+            self.hydro.swan_init(self.input, self.pyGrid.regZ, self.waveID, self.force.sealevel, tide)
 
     def run_to_time(self, tEnd, profile=False, verbose=False):
         """
@@ -138,6 +153,10 @@ class Model(object):
             if self.input.salOn:
                 self.force.getSalinity(self.tNow)
 
+            # Update tidal range value
+            if self.input.tideOn:
+                self.force.getTidalRange(self.tNow)
+
             # Get ocean ph at start time
             if self.input.phOn:
                 self.force.getph(self.tNow)
@@ -150,8 +169,8 @@ class Model(object):
                     self.waveID = self.hydro.swan_run(self.input, self.force, self.pyGrid.regZ, self.waveID)
 
                     # Perform morphological changes
-                    self.hydro.bed_elevation_change(self.input, self.force, self.pyGrid.regZ)
-                    
+                    #self.hydro.bed_elevation_change(self.input, self.force, self.pyGrid.regZ)
+
                     # Update next wave time step
                     self.force.next_wave += self.force.time_wave
 

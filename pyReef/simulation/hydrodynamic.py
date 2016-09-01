@@ -22,10 +22,11 @@ from scipy.interpolate import interpn
 from scipy.ndimage.filters import gaussian_filter
 
 from pyReef.libUtils  import simswan as swan
+from scipy import interpolate
 
 class hydrodynamic:
 
-    def __init__(self, CKomar, sigma, res, xv, yv):
+    def __init__(self, CKomar, sigma, res, wfac, xv, yv):
         """
         Constructor.
         """
@@ -35,6 +36,10 @@ class hydrodynamic:
         self.comm = mpi.COMM_WORLD
         self.fcomm = mpi.COMM_WORLD.py2f()
 
+        self.nbtides = 1
+        self.secyear = 3.154e+7
+        self.tWave = None
+        self.tSed = None
         self.morphDT = None
         self.CKomar = CKomar
         self.sigma = sigma
@@ -43,6 +48,7 @@ class hydrodynamic:
         self.dh = None
         self.d50 = None
         self.Urms = None
+        self.sl = None
         self.currentU = None
         self.qt = None
         self.bedCx = None
@@ -54,8 +60,6 @@ class hydrodynamic:
         self.rho_sed = None
         self.relativeDens = None
         self.kinematic_viscosity = 0.801e-6
-        #self.longshoreU = None
-        #self.longshoreV = None
 
         self.xv = xv
         self.yv = yv
@@ -65,10 +69,56 @@ class hydrodynamic:
         self.xyi = numpy.vstack((xx, yy)).T
 
         self.res = res
+        self.wres = res * wfac
+
+        self.Wfac = wfac
+        if self.Wfac > 1:
+            nx = int(len(xv)/self.Wfac)
+            self.swanX = numpy.linspace(xv.min(), xv.max(), num=nx)
+            ny = int(len(yv)/self.Wfac)
+            self.swanY = numpy.linspace(yv.min(), yv.max(), num=ny)
 
         return
 
-    def swan_init(self, input, z, wID, sl):
+    def _interpolate_to_wavegrid(self, elev):
+         """
+         This function interpolates pyReef simulation elevation to swan grid.
+
+         Parameters
+         ----------
+
+        variable : elev
+            Elevation data from pyReef simulation grid.
+
+         """
+
+         if self.Wfac > 1:
+            interpolate_fct = interpolate.interp2d(self.yv,self.xv,elev,kind='cubic')
+            Welev = interpolate_fct(self.swanY,self.swanX)
+            return Welev
+         else:
+            return elev
+
+    def _interpolate_to_sedgrid(self, data):
+         """
+         This function interpolate swan model output to pyReef simulation grid.
+
+         Parameters
+         ----------
+
+        variable : data
+            Swan output dataset to interpolate.
+
+         """
+
+         if self.Wfac > 1:
+            interpolate_fct = interpolate.interp2d(self.swanY,self.swanX,data,kind='cubic')
+            Wdata = interpolate_fct(self.yv,self.xv)
+            return Wdata
+         else:
+            return data
+
+    def swan_init(self, input, z, wID, sl, tide):
          """
          This function initialise swan model.
 
@@ -86,24 +136,33 @@ class hydrodynamic:
 
          variable: sl
             Sealevel elevation.
+
+         variable: tide
+            Tide range.
          """
 
          # Define variables for sediment transport
          self.d50 = input.faciesDiam[-1]
-         self.rho_sed = input.sedDensity[-1]
+         self.rho_sed = input.density[-1]
          self.rho_water = input.waterD
-         self.porosity = input.sedPorosity[-1]
+         self.porosity = input.porosity[-1]
+         self.diffusion = input.diffusion[-1]
 
+         self.tSed = input.tSed
+         self.tWave = input.tWave
          self.relativeDens = self.rho_sed/self.rho_water
          self.Dstar = self.d50*(self.gravity*(self.relativeDens-1.)/self.kinematic_viscosity**2)**(1./3.)
          self.dSVR = ((self.relativeDens-1.)*self.gravity*self.d50)**1.2
 
          wl = input.wavelist[wID]
          cl = input.climlist[wID]
+
+         elev = self._interpolate_to_wavegrid(z)
+         wD = input.waveWd[wl][cl] + 2.*input.waveWs[wl][cl]*(numpy.random.rand()-0.5)
          swan.model.init(self.fcomm, input.swanFile, input.swanInfo,
-                        input.swanBot, input.swanOut, z, input.waveWh[wl][cl],
-                        input.waveWp[wl][cl], input.waveWd[wl][cl], self.res,
-                        input.waveBase, sl)
+                        input.swanBot, input.swanOut, elev, input.waveWh[wl][cl],
+                        input.waveWp[wl][cl], wD,
+                        self.wres, input.waveBase, sl-tide)
 
          return
 
@@ -128,12 +187,22 @@ class hydrodynamic:
              Wave number ID.
          """
 
+         self.nbtides = 1
+         if force.tideval != 0:
+             self.nbtides = 2
+
+         # Initialise morphological changes
+         self.sl = []
+         self.dh = []
+
+         # Initialise wave parameters
+         self.Urms = []
          force.wavU = []
          force.wavV = []
          force.wavH = []
          force.Perc = []
 
-         self.Urms = []
+         # Initialise logshore drift
          self.currentU = []
 
          # Loop through the different wave climates and store swan output information
@@ -143,55 +212,99 @@ class hydrodynamic:
 
             # Define next wave regime
             tw = time.clock()
-            wID += 1
-            wl = input.wavelist[wID]
-            cl = input.climlist[wID]
 
-            # Run SWAN model
-            wavU, wavD, H = swan.model.run(self.fcomm, z, input.waveWh[wl][cl],
-                                           input.waveWp[wl][cl], input.waveWd[wl][cl],
-                                           force.sealevel)
-            self.Urms.append(wavU)
-            # Define cross-shore current
-            lvl = input.waveBrk[wl][cl]
-            if cl == 0:
-                storm = input.storm[wl-1][cl]
-            else:
-                storm = input.storm[wl][cl-1]
+            for tide in range(self.nbtides):
 
-            if storm == 0:
-                cU = wavU * numpy.cos(wavD)
-                cV = wavU * numpy.sin(wavD)
-            else:
-                r,c = numpy.where(z-force.sealevel>2*lvl)
-                wavD[r,c] += numpy.pi
-                cU = wavU * numpy.cos(wavD)
-                cV = wavU * numpy.sin(wavD)
+                # Update elevation if required
+                elev = self._interpolate_to_wavegrid(z)
 
+                if force.tideval != 0 and tide == 0:
+                    force.Perc.append(input.wavePerc[input.wavelist[wID]][input.climlist[wID]])
+                    storm = input.storm[input.wavelist[wID]][input.climlist[wID]]
+                    wl = input.wavelist[wID]
+                    cl = input.climlist[wID]
+                    sl = force.sealevel - force.tideval
+                    self.sl.append(sl)
+                elif force.tideval != 0 and tide == 1:
+                    force.Perc.append(input.wavePerc[input.wavelist[wID]][input.climlist[wID]])
+                    storm = input.storm[input.wavelist[wID]][input.climlist[wID]]
+                    wID += 1
+                    wl = input.wavelist[wID]
+                    cl = input.climlist[wID]
+                    sl = force.sealevel + force.tideval
+                    self.sl.append(sl)
+                else:
+                    force.Perc.append(input.wavePerc[input.wavelist[wID]][input.climlist[wID]])
+                    storm = input.storm[input.wavelist[wID]][input.climlist[wID]]
+                    wID += 1
+                    wl = input.wavelist[wID]
+                    cl = input.climlist[wID]
+                    sl = force.sealevel
+                    self.sl.append(sl)
 
-            if self.rank == 0:
-                print 'Swan model of waves field %d and climatic conditions %d:' %(wl,cl)
-                print 'took %0.02f seconds to run.' %(time.clock()-tw)
+                # Run SWAN model
+                wD = input.waveWd[wl][cl] + 2.*input.waveWs[wl][cl]*(numpy.random.rand()-0.5)
 
-            # Compute long-shore velocity field
-            tw = time.clock()
-            brk = [lvl/2.,lvl,2*lvl]
-            slongV, slongD = self._compute_longshore_velocity(z-force.sealevel, wavD, wavU, brk)
+                if self.rank == 0:
+                    print '-----------------'
+                    if force.tideval != 0 and tide == 0:
+                        tw1 = input.wavelist[wID]
+                        tc1 = input.climlist[wID]
+                        print 'Low-tide hydrodynamics: wave field %d and climatic conditions %d' %(tw1,tc1)
+                    elif force.tideval != 0 and tide == 1:
+                        tw1 = input.wavelist[wID-1]
+                        tc1 = input.climlist[wID-1]
+                        print 'High-tide hydrodynamics: wave field %d and climatic conditions %d' %(tw1,tc1)
+                    else:
+                        tw1 = input.wavelist[wID-1]
+                        tc1 = input.climlist[wID-1]
+                        print 'Hydrodynamics: waves field %d and climatic conditions %d:' %(tw1,tc1)
 
-            # Long-shore current
-            lU = slongV * numpy.cos(slongD)
-            lV = slongV * numpy.sin(slongD)
-            self.currentU.append(slongV)
+                sU, sD, sH = swan.model.run(self.fcomm, elev, input.waveWh[wl][cl], input.waveWp[wl][cl], wD, sl)
 
-            # Store percentage of each climate and induced bottom currents velocity
-            force.wavU.append(cU+lU)
-            force.wavV.append(cV+lV)
-            force.wavH.append(H)
-            force.Perc.append(input.wavePerc[wl][cl])
+                if self.rank == 0:
+                    print '   -   Wave propagation took %0.02f seconds to run.' %(time.clock()-tw)
 
-            if self.rank == 0:
-                print 'Longshore model for wave field %d and climatic conditions %d:' %(wl,cl)
-                print 'took %0.02f seconds to run.' %(time.clock()-tw)
+                tw = time.clock()
+                wavU = self._interpolate_to_sedgrid(sU)
+                wavD = self._interpolate_to_sedgrid(sD)
+                H = self._interpolate_to_sedgrid(sH)
+                r,c = numpy.where(z>=0)
+                wavU[r,c] = 0.
+                wavD[r,c] = 0.
+                H[r,c] = 0.
+                self.Urms.append(wavU)
+
+                # Define cross-shore current
+                lvl = input.waveBrk[wl][cl]
+                if storm == 0:
+                    cU = wavU * numpy.cos(wavD)
+                    cV = wavU * numpy.sin(wavD)
+                else:
+                    r,c = numpy.where(z-sl>2*lvl)
+                    wavD[r,c] += numpy.pi
+                    cU = wavU * numpy.cos(wavD)
+                    cV = wavU * numpy.sin(wavD)
+
+                # Compute long-shore velocity field
+                brk = [lvl/2.,lvl,2*lvl]
+                slongV, slongD = self._compute_longshore_velocity(z-sl, wavD, wavU, brk)
+
+                # Set up long-shore current
+                lU = slongV * numpy.cos(slongD)
+                lV = slongV * numpy.sin(slongD)
+                self.currentU.append(slongV)
+
+                # Store percentage of each climate and induced bottom currents velocity
+                force.wavU.append(cU+lU)
+                force.wavV.append(cV+lV)
+                force.wavH.append(H)
+
+                if self.rank == 0:
+                    print '   -   Currents model took %0.02f seconds to run.' %(time.clock()-tw)
+
+                # Perform morphological changes
+                self._bed_elevation_change(input, force, z, len(self.sl)-1)
 
          return wID
 
@@ -206,16 +319,16 @@ class hydrodynamic:
         bc[1:-1,1:-1] = z
 
         # Assign boundary conditions - sides
-        bc[0, 1:-1] = z[0, :]
-        bc[-1, 1:-1] = z[-1, :]
-        bc[1:-1, 0] = z[:, 0]
-        bc[1:-1, -1] = z[:,-1]
+        bc[0,1:-1] = z[0,:]
+        bc[-1,1:-1] = z[-1,:]
+        bc[1:-1,0] = z[:,0]
+        bc[1:-1,-1] = z[:,-1]
 
         # Assign boundary conditions - corners
-        bc[0, 0] = z[0, 0]
-        bc[0, -1] = z[0, -1]
-        bc[-1, 0] = z[-1, 0]
-        bc[-1, -1] = z[-1, 0]
+        bc[0,0] = z[0,0]
+        bc[0,-1] = z[0,-1]
+        bc[-1,0] = z[-1,0]
+        bc[-1,-1] = z[-1,0]
 
         return bc
 
@@ -228,13 +341,13 @@ class hydrodynamic:
         bc = self._assignBCs(z)
 
         # Compute finite differences
-        sx = (bc[1:-1, 2:] - bc[1:-1, :-2])/(2*self.res)
-        sy = (bc[2:,1:-1] - bc[:-2, 1:-1])/(2*self.res)
+        sx = (bc[1:-1,2:]-bc[1:-1,:-2])/(2*self.res)
+        sy = (bc[2:,1:-1]-bc[:-2,1:-1])/(2*self.res)
         smag = numpy.sqrt(sx**2 + sy**2)
 
         return smag
 
-    def sediment_transport_components(self, input, force, z):
+    def _sediment_transport_components(self, input, force, z, sl, clim):
          """
          This function computes the total load sediment transport in combined waves and currents
          based on Soulsby - Van Rijn
@@ -250,20 +363,26 @@ class hydrodynamic:
 
          variable: z
             Elevation.
+
+         variable: sl
+            Sea level.
+
+         variable: clim
+            Climatic condition.
          """
 
          # Compute slope
          smag = self._calcFiniteSlopes(z)
 
          # Initialise total load and deposition rate component
-         self.qt = []
-         self.bedCx = []
-         self.bedCy = []
-         self.deprate = []
-         self.morphDT = []
+         self.qt = 0.
+         self.bedCx = 0.
+         self.bedCy = 0.
+         self.deprate = 0.
+         self.morphDT = 0.
 
          # Loop through the different wave climates and store swan output information
-         depth = force.sealevel - z
+         depth = sl - z
 
          As = numpy.zeros((z.shape[0],z.shape[1]))
          CD = numpy.zeros((z.shape[0],z.shape[1]))
@@ -281,55 +400,52 @@ class hydrodynamic:
              Ucr[row,col] = 0.19*numpy.log10(4.*depth[row,col]/self.d50)*self.d50**0.1
          else:
              Ucr[row,col] = 8.5*numpy.log10(4.*depth[row,col]/self.d50)*self.d50**0.6
+
          Ucr[Ucr<0] = 0.
          frac = (1.-self.porosity)*self.res
          tmp = 1/(1.-self.porosity)
-         for clim in range(len(self.Urms)):
-             # Define total load from Soulsby Van Rijn formulation
-             #speed = numpy.sqrt(force.wavU[clim]**2+force.wavV[clim]**2)
-             speed = self.currentU[clim]
-             qt[row,col] = As[row,col] * speed[row,col] * ( numpy.sqrt(speed[row,col]**2 + \
-                0.018*self.Urms[clim][row,col]/CD[row,col]) - Ucr[row,col] )**2.4 * (1.-1.6*smag[row,col])
-             qt[numpy.isnan(qt)] = 0.
-             self.qt.append(qt)
+         # Define total load from Soulsby Van Rijn formulation
+         #speed = numpy.sqrt(force.wavU[clim]**2+force.wavV[clim]**2)
+         speed = self.currentU[clim]
+         qt[row,col] = As[row,col] * speed[row,col] * ( numpy.sqrt(speed[row,col]**2 + \
+            0.018*self.Urms[clim][row,col]/CD[row,col]) - Ucr[row,col] )**2.4 * (1.-1.6*smag[row,col])
+         qt[numpy.isnan(qt)] = 0.
+         self.qt = qt
 
-             # Compute sedimentation rate
-             # qx(i-1,j) - qx(i,j)
-             dqtx = numpy.zeros(qt.shape)
-             dqtx[1:qt.shape[0],:] = -numpy.diff(qt,axis=0)
-             dqtx[0,:] = dqtx[1,:]
+         # Compute sedimentation rate
+         # d(i-1,j) - d(i,j)
+         dqtx = numpy.zeros(qt.shape)
+         dqtx[1:,:] = qt[:-1,:]-qt[1:,:]
+         dqtx[0,:] = dqtx[1,:]
+         dhx = numpy.zeros(qt.shape)
+         dhx[1:,:] = z[:-1,:]-z[1:,:]
+         dhx[0,:] = dhx[1,:]
+         # d(i,j) - d(i,j+1)
+         dqty = numpy.zeros(qt.shape)
+         dqty[:,:-1] = qt[:,:-1]-qt[:,1:]
+         dqty[:,-1] = dqty[:,-2]
+         dhy = numpy.zeros(qt.shape)
+         dhy[:,:-1] = z[:,:-1]-z[:,1:]
+         dhy[:,-1] = dhy[:,-2]
 
-             # hx(i-1,j) - hx(i,j)
-             dhx = numpy.zeros(qt.shape)
-             dhx[1:qt.shape[0],:] = -numpy.diff(z,axis=0)
-             dhx[0,:] = dhx[1,:]
+         # Compute bed morphological velocity
+         bedCx = dqtx/dhx*tmp
+         bedCx[numpy.isnan(bedCx)] = 0.
+         bedCy = dqty/dhy*tmp
+         bedCy[numpy.isnan(bedCy)] = 0.
+         self.bedCx = bedCx
+         self.bedCy = bedCy
+         self.deprate = (dqtx+dqty)/frac
+         bedC2 = bedCx**2+bedCy**2
+         r,c = numpy.where(bedC2>0)
 
-             # qy(i,j) - qy(i,j+1)
-             dqty = numpy.zeros(qt.shape)
-             dqty[:,:qt.shape[1]-1] = -numpy.diff(qt,axis=1)
-             dqty[:,-1] = dqty[:,-2]
-
-             # hy(i,j) - hy(i,j+1)
-             dhy = numpy.zeros(qt.shape)
-             dhy[:,:qt.shape[1]-1] = -numpy.diff(z,axis=1)
-             dhy[:,-1] = dhy[:,-2]
-
-             bedCx = dqtx/dhx*tmp
-             bedCx[numpy.isnan(bedCx)] = 0.
-             bedCy = dqty/dhy*tmp
-             bedCy[numpy.isnan(bedCy)] = 0.
-             self.bedCx.append(bedCx)
-             self.bedCy.append(bedCy)
-             self.deprate.append((dqtx+dqty)/frac)
-
-             bedC2 = bedCx**2+bedCy**2
-             r,c = numpy.where(bedC2>0)
-             dtm = self.res / numpy.sqrt(2*bedC2[r,c])
-             self.morphDT.append(dtm.min())
+         # Get CFL condition
+         dtm = self.res / numpy.sqrt(2*bedC2[r,c])
+         self.morphDT = dtm.min()
 
          return
 
-    def bed_elevation_change(self, input, force, z):
+    def _bed_elevation_change(self, input, force, z, clim):
          """
          This function computes the bed elevation change using the second order Lax Wendroff scheme
 
@@ -344,58 +460,57 @@ class hydrodynamic:
 
          variable: z
             Elevation.
+
+         variable: clim
+            Climatic condition.
          """
 
          # Initialise morphological changes
          self.dh = []
+         tstep = 0.
+         totdh = numpy.zeros(z.shape)
+         diff = numpy.zeros(z.shape)
+         tm = time.clock()
+         tend = self.tWave*force.Perc[clim]*self.secyear/self.nbtides
 
-         for clim in range(len(self.Urms)):
-             step = 0
-             tstep = 0
-             totdh = numpy.zeros(z.shape)
-             tm = time.clock()
-             while(tstep<3600.*24):
-                 self.sediment_transport_components(input, force, z)
-                 forceDt = max(self.morphDT[clim],120.)
+         while(tstep<tend):
 
-                 tmp = -forceDt**2 / (4.*self.res)
-                 dh = -forceDt * self.deprate[clim]
-                 rCx = self.deprate[clim] * self.bedCx[clim]
-                 rCy = self.deprate[clim] * self.bedCy[clim]
+             self._sediment_transport_components(input, force, z, self.sl[clim], clim)
+             forceDt = max(self.morphDT,self.tSed)
 
-                 # rCx(i+1,j) - rCx(i-1,j)
-                 tmp1 = numpy.zeros(rCx.shape)
-                 tmp1[1:rCx.shape[0],:] = -numpy.diff(rCx,axis=0)
-                 tmp1[0,:] = tmp1[1,:]
-                 tmp2 = numpy.zeros(rCx.shape)
-                 tmp2[:rCx.shape[0]-1,:] = -numpy.diff(rCx,axis=0)
-                 tmp2[-1,:] = tmp2[-2,:]
-                 sum1 = -(tmp1+tmp2)
-                 sum1[0,:] = sum1[1,:]
-                 sum1[-1,:] = sum1[-2,:]
+             tmp = -forceDt**2 / (4.*self.res)
+             dh = -forceDt * self.deprate
+             rCx = self.deprate * self.bedCx
+             rCy = self.deprate * self.bedCy
 
-                 # rCy(i,j+1) - rCy(i,j-1)
-                 tmp1 = numpy.zeros(rCy.shape)
-                 tmp1[:,1:rCy.shape[1]] = -numpy.diff(rCy,axis=1)
-                 tmp1[:,0] = tmp1[:,1]
-                 tmp2 = numpy.zeros(rCy.shape)
-                 tmp2[:,:rCy.shape[1]-1] = -numpy.diff(rCy,axis=1)
-                 tmp2[:,-1] = tmp2[:,-2]
-                 sum2 = -(tmp1+tmp2)
-                 sum2[:,0] = sum2[:,1]
-                 sum2[:,-1] = sum2[:,-2]
+             # rCx(i+1,j) - rCx(i-1,j)
+             sum1 = numpy.zeros(rCx.shape)
+             sum1[1:-1,:] = rCx[2:,:]-rCx[:-2,:]
+             sum1[0,:] = sum1[1,:]
+             sum1[-1,:] = sum1[-2,:]
 
-                 dh += tmp*(sum1+sum2)
-                 step += 1
-                 tstep += forceDt
-                 totdh += dh
-                 z += dh
+             # rCy(i,j+1) - rCy(i,j-1)
+             sum2 = numpy.zeros(rCy.shape)
+             sum2[:,1:-1] = rCy[:,2:]-rCy[:,:-2]
+             sum2[:,0] = sum2[:,1]
+             sum2[:,-1] = sum2[:,-2]
 
-             if self.rank == 0:
-                 print 'Morphological change associated to climatic conditions %d:' %(clim)
-                 print 'took %0.02f seconds to run and did %d steps.' %(time.clock()-tm,step)
+             dh = tmp*(sum1+sum2)
+             tstep += forceDt
+             # Diffusion transport
+             dh[1:-1,1:-1] += forceDt*self.diffusion*( (z[:-2,1:-1]-2*z[1:-1,1:-1]+z[2:,1:-1]) +
+                                (z[1:-1,:-2]-2*z[1:-1,1:-1]+z[1:-1,2:]) )/(self.res**2)
+             totdh += dh
+             z += dh
 
-             self.dh.append(totdh)
+             # Diffusion transport
+             #  diff[1:-1,1:-1] = tend*self.diffusion*( (z[:-2,1:-1]-2*z[1:-1,1:-1]+z[2:,1:-1]) +
+             #                     (z[1:-1,:-2]-2*z[1:-1,1:-1]+z[1:-1,2:]) )/(self.res**2)
+
+         if self.rank == 0:
+             print '   -   Morphological change took %0.02f seconds to run.' %(time.clock()-tm)
+
+         self.dh.append(totdh)
 
          return
 
@@ -550,7 +665,6 @@ class hydrodynamic:
                     # Longuet-Higgins (1970) formed an expression for the mean longshore velocity (                                   )
                     # at the breaker zone, of a planar beach, which was modified by Komar (1976) and
                     # took the form of:
-                    #lV = self.CKomar * numpy.sqrt(self.gravity*wavH)*numpy.cos(incidence)*numpy.sin(incidence)
                     lV = self.CKomar*wavU*numpy.cos(incidence)*numpy.sin(incidence)
 
                     if l == 0:

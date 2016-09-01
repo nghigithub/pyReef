@@ -50,6 +50,12 @@ class forceSim:
         self.salval = None
         self.salFunc = None
 
+        self.tide0 = input.tideval
+        self.tidefile = input.tidefile
+        self.tidetime = None
+        self.tideval = None
+        self.tideFunc = None
+
         self.ph0 = input.phval
         self.phfile = input.phfile
         self.phtime = None
@@ -105,6 +111,9 @@ class forceSim:
 
         if self.phfile != None:
             self._build_Acidity_function()
+
+        if self.tidefile != None:
+            self._build_Tidal_function()
 
         return
 
@@ -170,9 +179,26 @@ class forceSim:
                                header=None, na_filter=False,
                                dtype=numpy.float, low_memory=False)
 
-        self.seatime = saldata.values[:,0]
+        self.saltime = saldata.values[:,0]
         tmp = saldata.values[:,1]
         self.salFunc = interpolate.interp1d(self.saltime, tmp, kind='linear')
+
+        return
+
+    def _build_Tidal_function(self):
+        """
+        Using Pandas library to read the tidal range file and define tidal interpolation
+        function based on Scipy 1D linear function.
+        """
+
+        # Read salinity file
+        tidedata = pandas.read_csv(self.tidefile, sep=r'\s+', engine='c',
+                               header=None, na_filter=False,
+                               dtype=numpy.float, low_memory=False)
+
+        self.tidetime = tidedata.values[:,0]
+        tmp = tidedata.values[:,1]
+        self.tideFunc = interpolate.interp1d(self.tidetime, tmp, kind='linear')
 
         return
 
@@ -257,6 +283,27 @@ class forceSim:
             if time > self.saltime.max():
                 time = self.saltime.max()
             self.salval = self.salFunc(time)
+
+        return
+
+    def getTidalRange(self, time):
+        """
+        Computes for a given time the tidal range according to input file parameters.
+
+        Parameters
+        ----------
+        float : time
+            Requested time for which to compute tidal range value.
+        """
+
+        if self.tidefile == None:
+            self.tideval = self.tide0
+        else:
+            if time < self.tidetime.min():
+                time = self.tidetime.min()
+            if time > self.tidetime.max():
+                time = self.tidetime.max()
+            self.tideval = self.tideFunc(time)
 
         return
 
