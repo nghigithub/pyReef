@@ -11,6 +11,8 @@ Test/.ipynb_checkpoints/
 *.bot
 *.swn
 *.pvd
+*.vts
+*swan.csv
 *.xmf
 *.xdmf
 .ipynb_checkpoints
