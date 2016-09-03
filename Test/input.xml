@@ -61,7 +61,7 @@
 			<!-- Porosity [kg/m3] -->
 			<porosity>0.4</porosity>
 			<!-- Diffusion coefficient [m2/s] -->
-			<diffusion>0.00001</diffusion>
+			<diffusion>0.000001</diffusion>
 		</facies>
 	</lithofacies>
 
@@ -181,7 +181,7 @@
 			-->
 	<tides>
 		<!-- Constant tidal range value - (optional) -->
-		<val>0</val>
+		<val>0.</val>
 		<!-- Tidal range curve - (optional). The file is made of 2 columns:
 									- first column: the time in year (increasing order)
 									- second column: the tidal range value for the considered time [m]
@@ -235,20 +235,47 @@
 			<!-- Percentage of time this event is active during the time interval -->
 			<perc>0.8</perc>
 			<!-- Significant wave height (in m) -->
-			<hs>0.5</hs>
+			<hs>1</hs>
 			<!-- Characteristic period of the energy spectrum (s) -->
 			<per>12</per>
 			<!-- Wave direction in degrees (between 0 and 360) from the
 									 X-axis (horizontal) anti-clock wise -->
-			<dir>180</dir>
+			<dir>270</dir>
 			<!-- Spreading angle from the main wave direction in
 									 degrees -->
 			<spread>20</spread>
 			<!-- Wave breaking depth [m] -->
 			<break>-1</break>
+			<!-- Maximum mobile bed thickness [m] needs to be set according to
+					 wave climatic duration time.-->
+			<bedlayer>1.</bedlayer>
 			<!-- Storm (1) or recovery period (0) -->
 			<storm>0</storm>
 		</climate>
+        <?ignore
+		<!-- Storm -->
+		<climate>
+			<!-- Percentage of time this event is active during the time interval -->
+			<perc>0.2</perc>
+			<!-- Significant wave height (in m) -->
+			<hs>3.5</hs>
+			<!-- Characteristic period of the energy spectrum (s) -->
+			<per>8</per>
+			<!-- Wave direction in degrees (between 0 and 360) from the
+									 X-axis (horizontal) anti-clock wise -->
+			<dir>150</dir>
+			<!-- Spreading angle from the main wave direction in
+									 degrees -->
+			<spread>10</spread>
+			<!-- Wave breaking depth [m] -->
+			<break>-3</break>
+			<!-- Maximum mobile bed thickness [m] needs to be set according to
+					 wave climatic duration time.-->
+			<bedlayer>2.</bedlayer>
+			<!-- Storm (1) or recovery period (0) -->
+			<storm>1</storm>
+		</climate>
+        ?>
 	</wave>
 
 	<!-- Output folder path -->

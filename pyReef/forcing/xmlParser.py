@@ -100,6 +100,7 @@ class xmlParser:
         self.waveWs = None
         self.waveWd = None
         self.waveBrk = None
+        self.bedlay = None
         self.storm = None
         self.wavelist = None
         self.climlist = None
@@ -578,6 +579,7 @@ class xmlParser:
             self.waveWs = []
             self.wavePerc = []
             self.waveBrk = []
+            self.bedlay = []
             self.storm = []
             self.waveTime = numpy.empty((tmpNb,2))
             self.climNb = numpy.empty(tmpNb, dtype=int)
@@ -620,6 +622,7 @@ class xmlParser:
                     listWd = []
                     listWs = []
                     listStorm = []
+                    listBedlay = []
                     listBreak = []
                     id = 0
                     sumPerc = 0.
@@ -680,6 +683,14 @@ class xmlParser:
                         else:
                             raise ValueError('Wave event %d is missing wave breaking depth argument.'%w)
                         element = None
+                        element = clim.find('bedlayer')
+                        if element is not None:
+                            listBedlay.append(float(element.text))
+                            if listBedlay[id] <= 0:
+                                listBedlay[id] = 0.001
+                        else:
+                            raise ValueError('Wave event %d is missing bed layer thickness argument.'%w)
+                        element = None
                         element = clim.find('storm')
                         if element is not None:
                             listStorm.append(int(element.text))
@@ -690,13 +701,18 @@ class xmlParser:
                         else:
                             raise ValueError('Wave event %d is missing storm argument.'%w)
                         id += 1
+                    if len(listPerc) < self.climNb[w] :
+                        raise ValueError('Amount of climates declared in wave event %d does not match the given climate number.'%w)
+
                     w += 1
+
                     self.wavePerc.append(listPerc)
                     self.waveWh.append(listWh)
                     self.waveWp.append(listWp)
                     self.waveWs.append(listWs)
                     self.waveWd.append(listWd)
                     self.waveBrk.append(listBreak)
+                    self.bedlay.append(listBedlay)
                     self.storm.append(listStorm)
                 else:
                     raise ValueError('Wave event %d is missing.'%w)

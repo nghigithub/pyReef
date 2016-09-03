@@ -68,6 +68,7 @@ class forceSim:
         self.wavH = None
         # self.longD = None
         self.wavPerc = None
+        self.bedLay = None
         # self.longU = None
         #self.wavP = None
         #self.wavL = None
