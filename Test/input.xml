@@ -4,7 +4,7 @@
 	<!-- Regular grid structure -->
 	<grid>
 		<!-- Digital elevation model file path -->
-		<demfile>data/dem25mOTI.csv</demfile>
+		<demfile>data/OTRdem.csv</demfile>
 		<!-- Optional parameter (integer) used to change model resolution.
 							 The default value is set to 1. Factor above 1 will decrease
 							 the resolution accordingly and factor between 0 and 1 will
