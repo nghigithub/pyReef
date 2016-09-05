@@ -47,10 +47,14 @@ class hydrodynamic:
         self.gravity = 9.81
         self.porosity = None
         self.dh = None
+        self.bedl = None
+        self.suspl = None
         self.d50 = None
+        self.ws = None
         self.Urms = None
         self.sl = None
         self.currentU = None
+        self.currentD = None
         self.qt = None
         self.bedCx = None
         self.bedCy = None
@@ -95,6 +99,19 @@ class hydrodynamic:
 
          return
 
+    def _settling_velocity(self):
+         """
+         This function computes the settling velocity for each sediment diameter
+         based on Ferguson & Church (2006) formula.
+         """
+         C1 = 20.
+         C2 = 1.1
+         R = (self.rho_sed-self.rho_water)*self.gravity/self.rho_water
+         tmp1 = R*self.d50**2
+
+         tmp2 = C1*(self.kinematic_viscosity)+numpy.sqrt(0.75*C2*R*self.d50**3)
+
+         return tmp1/tmp2
 
     def _interpolate_to_wavegrid(self, elev):
          """
@@ -163,7 +180,7 @@ class hydrodynamic:
          self.rho_water = input.waterD
          self.porosity = input.porosity[-1]
          self.diffusion = input.diffusion[-1]
-
+         self.ws = self._settling_velocity()
          self.tSed = input.tSed
          self.tWave = input.tWave
          self.relativeDens = self.rho_sed/self.rho_water
@@ -213,6 +230,8 @@ class hydrodynamic:
          # Initialise morphological changes
          self.sl = []
          self.dh = []
+         self.bedl = []
+         self.suspl = []
 
          # Initialise wave parameters
          self.Urms = []
@@ -222,8 +241,9 @@ class hydrodynamic:
          force.Perc = []
          force.bedLay = []
 
-         # Initialise logshore drift
+         # Initialise longshore drift
          self.currentU = []
+         self.currentD = []
 
          # Loop through the different wave climates and store swan output information
          force.wclim = input.climNb[input.wavelist[wID]]
@@ -316,6 +336,7 @@ class hydrodynamic:
                 lU = slongV * numpy.cos(slongD)
                 lV = slongV * numpy.sin(slongD)
                 self.currentU.append(slongV)
+                self.currentD.append(slongD)
 
                 # Store each climate induced bottom currents velocity
                 totU = 1.5*gaussian_filter(cU+lU, 1.)
@@ -331,7 +352,7 @@ class hydrodynamic:
                     print '   -   Currents model took %0.02f seconds to run.' %(time.clock()-tw)
 
                 # Perform morphological changes
-                self._bed_elevation_change(input, force, z, len(self.sl)-1)
+                self._bed_elevation_change(input, force, z, lvl, len(self.sl)-1)
 
          return wID
 
@@ -518,7 +539,7 @@ class hydrodynamic:
 
          return
 
-    def _bed_elevation_change(self, input, force, z, clim):
+    def _bed_elevation_change(self, input, force, z, lvl, clim):
          """
          This function computes the bed elevation change using the second order Lax Wendroff scheme
 
@@ -533,6 +554,9 @@ class hydrodynamic:
 
          variable: z
             Elevation.
+
+         variable: lvl
+            Contour current level.
 
          variable: clim
             Climatic condition.
@@ -554,6 +578,7 @@ class hydrodynamic:
          entrain[entrain<-force.bedLay[clim]] = -force.bedLay[clim]
          r,c = numpy.where(z-self.sl[-1]>=0)
          entrain[r,c] = 0.
+         z += entrain
 
          # Combined wave current direction
          transD = numpy.zeros(z.shape)
@@ -563,33 +588,71 @@ class hydrodynamic:
          transD[r,c] = 3.*numpy.pi/2.
          r,c = numpy.where(transD==0)
          transD[r,c] = numpy.arctan(force.wavV[clim][r,c]/force.wavU[clim][r,c])
+         r,c = numpy.where(z-self.sl[clim]>lvl)
+         transD[r,c] = self.currentD[clim][r,c]
 
          # Define sediment distribution based on transport direction
          self._sediment_distribution(transD)
+
+         # Setup bedload and suspended load arrays
+         bedcharge = -entrain*0.5
+         suspcharge = -entrain-bedcharge
+         sumsusp = numpy.sum(suspcharge)
 
          # Bedload: limit transport to surrounding cells
          bedload = numpy.zeros(z.shape)
          for i in range(z.shape[0]):
             for j in range(z.shape[1]):
-               # Inverse distance weighting
-               bedload[self.ptI0[i,j],self.ptJ0[i,j]] += -self.prop0[i,j]*entrain[i,j]
-               bedload[self.ptI1[i,j],self.ptJ1[i,j]] += -self.prop1[i,j]*entrain[i,j]
+               if bedcharge[i,j]>0.:
+                   # Inverse distance weighting
+                   bedload[self.ptI0[i,j],self.ptJ0[i,j]] += self.prop0[i,j]*bedcharge[i,j]
+                   bedload[self.ptI1[i,j],self.ptJ1[i,j]] += self.prop1[i,j]*bedcharge[i,j]
 
-         # Combine erosion/deposition and update morphology
+         # Combine erosion/deposition and update morphology for bedload
          bedload = 1.5*gaussian_filter(bedload, 1.)
+         bedload[bedload<0] = 0.
          sbed = numpy.sum(bedload)
-         sentrain = numpy.sum(-entrain)
+         sentrain = numpy.sum(bedcharge)
          bedload = bedload*sentrain/sbed
-         z += entrain+bedload
+         z += bedload
 
          # Suspended load: follow streamlines until all sediments have been deposited
-         #susp = numpy.zeros(z.shape)
+         suspload = numpy.copy(suspcharge) #numpy.zeros(z.shape)
+         suspdepo = numpy.zeros(z.shape)
+         speed = numpy.sqrt(force.wavU[clim]**2+force.wavV[clim]**2)
+         susp_stp = 0
+         transport_efficiency = 0.85
+         while (numpy.sum(suspload) > 0.001 and susp_stp <= 100):
+             for i in range(z.shape[0]):
+                for j in range(z.shape[1]):
+                   # Deposit if current speed is small
+                   if speed[i,j] < 0.001:
+                       suspdepo[i,j] += suspload[i,j]
+                       suspload[i,j] = 0.
+                   # Move sediments to neighbouring cells
+                   else:
+                       suspd = (1.-transport_efficiency)*suspload[i,j]
+                       suspload[i,j] = transport_efficiency*suspload[i,j]
+                       suspload[self.ptI0[i,j],self.ptJ0[i,j]] += self.prop0[i,j]*suspload[i,j]
+                       suspload[self.ptI1[i,j],self.ptJ1[i,j]] += self.prop1[i,j]*suspload[i,j]
+                       suspdepo[i,j] += suspd
+                       suspload[i,j] = 0.
+             susp_stp += 1
+         suspdepo += suspload
+         # Combine erosion/deposition and update morphology for suspended load
+         suspdepo = 1.5*gaussian_filter(suspdepo, 1.)
+         suspdepo[suspdepo<0] = 0.
+         susp = numpy.sum(suspdepo)
+         suspdepo = suspdepo*sumsusp/susp
+         z += suspdepo
 
          # Diffusion transport
          dh[1:-1,1:-1] += dt*self.diffusion*( (z[:-2,1:-1]-2*z[1:-1,1:-1]+z[2:,1:-1]) +
                           (z[1:-1,:-2]-2*z[1:-1,1:-1]+z[1:-1,2:]) )/(self.res**2)
-         self.dh.append(dh+entrain+bedload)
+         self.dh.append(dh+entrain+bedload+suspdepo)
          z += dh
+         self.bedl.append(bedload)
+         self.suspl.append(suspdepo)
 
          if self.rank == 0:
              print '   -   Morphological change took %0.02f seconds to run.' %(time.clock()-tm)
