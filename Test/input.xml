@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pyreef xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+	<!-- Regular grid structure -->
+	<grid>
+		<!-- Digital elevation model file path -->
+		<demfile>data/OTRdem.csv</demfile>
+		<!-- Optional parameter (integer) used to change model resolution.
+							 The default value is set to 1. Factor above 1 will decrease
+							 the resolution accordingly and factor between 0 and 1 will
+							 increase it.  -->
+		<resdem>2</resdem>
+		<!-- Wave model resolution based on computational grid.  -->
+		<reswave>2</reswave>
+	</grid>
+
+	<!-- Simulation time structure -->
+	<time>
+		<!-- Simulation start time [a] -->
+		<start>0.</start>
+		<!-- Simulation end time [a] -->
+		<end>10.</end>
+		<!-- Time step [a] -->
+		<dt>0.5</dt>
+		<!-- Update wave conditions interval [a] -->
+		<twave>0.25</twave>
+		<!-- Maximum time step for sediment transport [minutes] -->
+		<tsed>30.</tsed>
+		<!-- Display interval [a] -->
+		<display>1.</display>
+		<!-- Stratigraphic layer interval [a] -->
+		<laytime>0.5</laytime>
+	</time>
+
+	<!-- Lithofacies structure -->
+	<lithofacies>
+		<!-- Number of lithofacies -->
+		<faciesNb>2</faciesNb>
+		<!-- Sea water density [kg/m3] -->
+		<waterD>1010</waterD>
+		<!-- Facies definition -->
+		<facies>
+			<!-- Facies name needs to be lower than 10 characters -->
+			<name>'coralgal'</name>
+			<!-- Averaged diameter of facies type [mm] -->
+			<diam>0.3</diam>
+			<!-- Sediment density [kg/m3] -->
+			<sedD>2650</sedD>
+			<!-- Porosity [kg/m3] -->
+			<porosity>0.4</porosity>
+			<!-- Transport efficiency specifies the percentage 
+             of suspended versus bedload transport: 0 is for
+             purely bedload and 1 for suspended only transport -->
+			<efficiency>0.9</efficiency>
+			<!-- Diffusion coefficient [m2/yr] -->
+			<diffusion>0.001</diffusion>
+		</facies>
+		<facies>
+			<!-- Facies name -->
+			<name>'sand'</name>
+			<!-- Averaged diameter of facies type [mm] -->
+			<diam>1.</diam>
+			<!-- Sediment density [kg/m3] -->
+			<sedD>2650</sedD>
+			<!-- Porosity [kg/m3] -->
+			<porosity>0.4</porosity>
+			<!-- Transport efficiency specifies the percentage 
+             of suspended versus bedload transport: 0 is for
+             purely bedload and 1 for suspended only transport -->
+			<efficiency>1</efficiency>
+			<!-- Diffusion coefficient [m2/s] -->
+			<diffusion>0.00000</diffusion>
+		</facies>
+	</lithofacies>
+
+	<!-- Basement structure:
+	         Specify initial stratigraphic layers. -->
+	<basement>
+		<!-- Number of stratigraphic layers. -->
+		<stratlayers>1</stratlayers>
+		<!-- The layering is defined from top to bottom, with:
+	            - either a constant percentage value for each lithofacies or with a lithofacies map
+	            - either a constant thickness for the entire layer or with a thickness map -->
+		<!-- Constant facies percentage and layer thickness -->
+		<layer>
+			<!-- Uniform percentage value for the considered layer, the percentage is defined for each
+									 facies in the same order as defined in the lithofacies structure. -->
+			<facPerc>0.2,0.8</facPerc>
+			<!-- Uniform thickness value for the considered layer [m]. -->
+			<thcst>100.</thcst>
+		</layer>
+
+		<?ignore
+		<!-- Constant lithofacies distribution and variable layer thickness map -->
+		<layer>
+			<!-- Uniform percentage value for the considered layer, the percentage is defined for each
+					 facies in the same order as defined in the lithofacies structure.-->
+			<facPerc>0.5,0.5</facPerc>
+			<!-- Variable thicknesses for the considered layer [m]. -->
+			<thmap>data/thlay2.csv</thmap>
+		</layer>
+		<!-- Variable lithofacies distribution and constant layer thickness -->
+		<layer>
+			<!-- Variable lithofacies distribution
+		for the considered layer. -->
+			<facmap>data/litho3.csv</facmap>
+			<!-- Uniform thickness value for the considered layer [m]. -->
+			<thcst>30</thcst>
+		</layer>
+		<!-- Variable lithofacies distribution and thicknesses -->
+		<layer>
+			<!-- Variable lithofacies
+		distribution for the considered layer. -->
+			<facmap>data/litho4.csv</facmap>
+			<!-- Variable thicknesses for the considered layer [m]. -->
+			<thmap>data/thlay4.csv</thmap>
+		</layer>
+		?>
+	</basement>
+
+	<!-- Sea-level structure
+			     The following methods can be used:
+			        - a constant sea-level position for the entire simulation [m]
+			        - a sea-level fluctuations curve (defined in a file)
+			-->
+	<sea>
+		<!-- Constant sea-level value [m] -->
+		<val>1.5</val>
+		<!-- Sea-level curve - (optional). The file is made of 2 columns:
+									- first column: the time in year (increasing order)
+									- second column: the sea-level position for the considered time [m]
+							 For any given time in the simulation the sea-level is obtained by linear interpolation
+					-->
+		<!--curve>data/sealvl.csv</curve-->
+	</sea>
+
+	<!-- Sea-surface temperature structure
+			     The following methods can be used:
+			        - a constant temperature for the entire simulation [Celsius]
+			        - a temperature fluctuations curve (defined in a file)
+			-->
+	<temperature>
+		<!-- Constant temperature value - (optional) -->
+		<val>20.</val>
+		<!-- Temperature curve - (optional). The file is made of 2 columns:
+									- first column: the time in year (increasing order)
+									- second column: the temperature value for the considered time [Celsius]
+							 For any given time in the simulation the temperature is obtained by linear interpolation
+					-->
+		<!--curve>data/temp.csv</curve-->
+	</temperature>
+
+	<!-- Ocean acidity structure
+			     The following methods can be used:
+			        - a constant ph for the entire simulation
+			        - a ph fluctuations curve (defined in a file)
+			-->
+	<acidification>
+		<!-- Constant ph value - (optional) -->
+		<val>8.1</val>
+		<!-- ph curve - (optional). The file is made of 2 columns:
+									- first column: the time in year (increasing order)
+									- second column: the ph value for the considered time
+							 For any given time in the simulation the ph is obtained by linear interpolation
+					-->
+		<!--curve>data/temp.csv</curve-->
+	</acidification>
+
+	<!-- Sea-surface salinity structure
+			     The following methods can be used:
+			        - a constant salinity for the entire simulation [PSU (Practical Salinity Unit)]
+			        - a salinity fluctuations curve (defined in a file)
+			-->
+	<salinity>
+		<!-- Constant salinity value - (optional) -->
+		<val>30.</val>
+		<!-- Salinity curve - (optional). The file is made of 2 columns:
+									- first column: the time in year (increasing order)
+									- second column: the salinity value for the considered time [PSU]
+							 For any given time in the simulation the salinity is obtained by linear interpolation
+					-->
+		<!--curve>data/sal.csv</curve-->
+	</salinity>
+
+	<!-- Tidal range structure
+					 The following methods can be used:
+					 			- a constant tidal range for the entire simulation [m]
+						    - a tidal range fluctuations curve (defined in a file)
+			-->
+	<tides>
+		<!-- Constant tidal range value - (optional) -->
+		<val>0.</val>
+		<!-- Tidal range curve - (optional). The file is made of 2 columns:
+									- first column: the time in year (increasing order)
+									- second column: the tidal range value for the considered time [m]
+			  			  For any given time in the simulation the tidal range is obtained by linear interpolation
+					 -->
+		<!--curve>data/tides.csv</curve-->
+	</tides>
+
+	<!-- Tectonic structure -->
+	<?ignore
+	<tectonic>
+		<!-- Number of tectonic events -->
+		<events>1</events>
+		<!-- Displacement definition -->
+		<disp>
+			<!-- Displacement start time [a] -->
+			<dstart>5.</dstart>
+			<!-- Displacement end time [a] -->
+			<dend>10.0</dend>
+			<!-- Displacement map [m]	-->
+			<dfile>data/disp1D.csv</dfile>
+		</disp>
+	</tectonic>
+	?>
+
+	<!-- Wave global parameters structure -->
+	<waveglobal>
+		<!-- Maximum depth for wave influence (m)-->
+		<base>80.0</base>
+		<!-- Number of wave climate temporal events. -->
+		<events>1</events>
+		<!-- Longshore current velocity coefficient based on Komar (76). -->
+		<cKom>2.7</cKom>
+		<!-- Gaussian filter coefficient for longshore current intensity smoothing. -->
+		<sigma>1</sigma>
+	</waveglobal>
+
+	<!-- Wave definition based on wave global structure.
+					 The wave field needs to be ordered by increasing start time.
+				 	 The time needs to be continuous between each field without overlaps. -->
+	<wave>
+		<!-- Wave start time [a] -->
+		<start>0</start>
+		<!-- Wave end time [a] -->
+		<end>10.</end>
+		<!-- Wave climates number -->
+		<climNb>1</climNb>
+		<!-- Climatic wave definition based on wind parameters. -->
+		<!-- Fair weather -->
+		<climate>
+			<!-- Percentage of time this event is active during the time interval -->
+			<perc>0.2</perc>
+			<!-- Significant wave height (in m) -->
+			<hs>3</hs>
+			<!-- Characteristic period of the energy spectrum (s) -->
+			<per>8</per>
+			<!-- Wave direction in degrees (between 0 and 360) from the
+									 X-axis (horizontal) anti-clock wise -->
+			<dir>90</dir>
+			<!-- Spreading angle from the main wave direction in
+									 degrees -->
+			<spread>20</spread>
+			<!-- Wave breaking depth [m] -->
+			<break>-0.5</break>
+			<!-- Maximum mobile bed thickness [m] needs to be set according to
+					 wave condition interval.-->
+			<bedlayer>0.5</bedlayer>
+			<!-- Storm (1) or recovery period (0) -->
+			<storm>0</storm>
+		</climate>
+        <?ignore
+		<!-- Storm -->
+		<climate>
+			<!-- Percentage of time this event is active during the time interval -->
+			<perc>0.2</perc>
+			<!-- Significant wave height (in m) -->
+			<hs>3.5</hs>
+			<!-- Characteristic period of the energy spectrum (s) -->
+			<per>8</per>
+			<!-- Wave direction in degrees (between 0 and 360) from the
+									 X-axis (horizontal) anti-clock wise -->
+			<dir>150</dir>
+			<!-- Spreading angle from the main wave direction in
+									 degrees -->
+			<spread>10</spread>
+			<!-- Wave breaking depth [m] -->
+			<break>-3</break>
+			<!-- Maximum mobile bed thickness [m] needs to be set according to
+					 wave climatic duration time.-->
+			<bedlayer>2.</bedlayer>
+			<!-- Storm (1) or recovery period (0) -->
+			<storm>1</storm>
+		</climate>
+        ?>
+	</wave>
+
+	<!-- Output folder path -->
+	<outfolder>outReef</outfolder>
+
+</pyreef>

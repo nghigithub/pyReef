@@ -54,6 +54,7 @@ class xmlParser:
         self.waterD = None
         self.density = None
         self.porosity = None
+        self.efficiency = None
         self.diffusion = None
         self.faciesName = None
         self.faciesDiam = None
@@ -245,6 +246,7 @@ class xmlParser:
             self.faciesName = numpy.empty(self.faciesNb, dtype="S10")
             self.density = numpy.zeros(self.faciesNb, dtype=float)
             self.porosity = numpy.zeros(self.faciesNb, dtype=float)
+            self.efficiency = numpy.zeros(self.faciesNb, dtype=float)
             self.diffusion = numpy.zeros(self.faciesNb, dtype=float)
             self.faciesDiam = numpy.zeros(self.faciesNb, dtype=float)
             id = 0
@@ -269,6 +271,12 @@ class xmlParser:
                     self.porosity[id] = float(element.text)
                 else:
                     self.porosity[id] = 0.4
+                element = None
+                element = facies.find('efficiency')
+                if element is not None:
+                    self.efficiency[id] = float(element.text)*0.7
+                else:
+                    self.efficiency[id] = 0.
                 element = None
                 element = facies.find('diffusion')
                 if element is not None:
