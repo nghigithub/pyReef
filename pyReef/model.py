@@ -80,7 +80,8 @@ class Model(object):
 
         # Define hydrodynamic conditions
         self.hydro = hydrodynamic.hydrodynamic(self.input.cKom, self.input.sigma, self.pyGrid.res,
-                                               self.input.Wfactor, self.pyGrid.regX, self.pyGrid.regY)
+                                               self.input.Wfactor, self.pyGrid.regX, self.pyGrid.regY,
+                                               self.pyGrid.partIDs)
 
         # Define display and wave climate next time step
         self.force.next_display = self.input.tStart

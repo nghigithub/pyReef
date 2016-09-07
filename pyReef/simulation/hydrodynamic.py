@@ -28,7 +28,7 @@ from scipy.ndimage.filters import gaussian_filter
 
 class hydrodynamic:
 
-    def __init__(self, CKomar, sigma, res, wfac, xv, yv):
+    def __init__(self, CKomar, sigma, res, wfac, xv, yv, partIDs):
         """
         Constructor.
         """
@@ -74,6 +74,10 @@ class hydrodynamic:
 
         self.res = res
         self.wres = res * wfac
+
+        self.partIDs = partIDs
+        self.i1 = partIDs[self.rank,0]
+        self.i2 = partIDs[self.rank,1]
 
         self.Wfac = wfac
         if self.Wfac > 1:
@@ -460,7 +464,7 @@ class hydrodynamic:
          data[:,0] = 0
          data[:,-1] = 0
 
-    def _sediment_distribution(self, transpD):
+    def _sediment_distribution(self, transD):
          """
          Define intersection points based on transport direction and specify for each nodes
          the proportion of sediment which moves to its neighborhood
@@ -468,11 +472,27 @@ class hydrodynamic:
          Parameters
          ----------
 
-         variable: transpD
+         variable: transD
             Transport direction.
          """
-         listPts = [[(0,0),(self.res*2.*numpy.cos(transpD[x,y]),self.res*2.*numpy.sin(transpD[x,y]))]
-                    for x in range(transpD.shape[0]) for y in range(transpD.shape[1])]
+
+         trans = transD[self.i1:self.i2,:]
+
+         lptI0 = numpy.zeros(transD.shape,dtype=int)
+         lptI0.fill(-100)
+         lptI1 = numpy.zeros(transD.shape,dtype=int)
+         lptI1.fill(-100)
+         lptJ0 = numpy.zeros(transD.shape,dtype=int)
+         lptJ0.fill(-100)
+         lptJ1 = numpy.zeros(transD.shape,dtype=int)
+         lptJ1.fill(-100)
+         lprop0 = numpy.zeros(transD.shape)
+         lprop0.fill(-100.)
+         lprop1 = numpy.zeros(transD.shape)
+         lprop1.fill(-100.)
+
+         listPts = [[(0,0),(self.res*2.*numpy.cos(trans[x,y]),self.res*2.*numpy.sin(trans[x,y]))]
+                    for x in range(trans.shape[0]) for y in range(trans.shape[1])]
          ls = [LineString(lP) for lP in listPts]
          pts = [l.intersection(self.ring) for l in ls]
          xy = numpy.asarray([p.coords[0] for p in pts])
@@ -501,21 +521,45 @@ class hydrodynamic:
                     prop1[p] = p0
                     break
 
-         self.ptI0 = ptI0.reshape(transpD.shape)
+         lptI0[self.i1:self.i2,:] =  ptI0.reshape(trans.shape)
+         lptI1[self.i1:self.i2,:] =  ptI1.reshape(trans.shape)
+         lptJ0[self.i1:self.i2,:] =  ptJ0.reshape(trans.shape)
+         lptJ1[self.i1:self.i2,:] =  ptJ1.reshape(trans.shape)
+         lprop0[self.i1:self.i2,:] =  prop0.reshape(trans.shape)
+         lprop1[self.i1:self.i2,:] =  prop1.reshape(trans.shape)
+
+         self.ptI0 = lptI0.flatten()
+         self.comm.Allreduce(mpi.IN_PLACE, self.ptI0, op=mpi.MAX)
+         self.ptI0 = self.ptI0.reshape(transD.shape)
          self._zeros_border_ids(self.ptI0)
          self.ptI0 += self.idI
-         self.ptI1 = ptI1.reshape(transpD.shape)
+
+         self.ptI1 = lptI1.flatten()
+         self.comm.Allreduce(mpi.IN_PLACE, self.ptI1, op=mpi.MAX)
+         self.ptI1 = self.ptI1.reshape(transD.shape)
          self._zeros_border_ids(self.ptI1)
          self.ptI1 += self.idI
-         self.ptJ0 = ptJ0.reshape(transpD.shape)
+
+         self.ptJ0 = lptJ0.flatten()
+         self.comm.Allreduce(mpi.IN_PLACE, self.ptJ0, op=mpi.MAX)
+         self.ptJ0 = self.ptJ0.reshape(transD.shape)
          self._zeros_border_ids(self.ptJ0)
          self.ptJ0 += self.idJ
-         self.ptJ1 = ptJ1.reshape(transpD.shape)
+
+         self.ptJ1 = lptJ1.flatten()
+         self.comm.Allreduce(mpi.IN_PLACE, self.ptJ1, op=mpi.MAX)
+         self.ptJ1 = self.ptJ1.reshape(transD.shape)
          self._zeros_border_ids(self.ptJ1)
          self.ptJ1 += self.idJ
-         self.prop0 = prop0.reshape(transpD.shape)
+
+         self.prop0 = lprop0.flatten()
+         self.comm.Allreduce(mpi.IN_PLACE, self.prop0, op=mpi.MAX)
+         self.prop0 = self.prop0.reshape(transD.shape)
          self._zeros_border_ids(self.prop0)
-         self.prop1 = prop1.reshape(transpD.shape)
+
+         self.prop1 = lprop1.flatten()
+         self.comm.Allreduce(mpi.IN_PLACE, self.prop1, op=mpi.MAX)
+         self.prop1 = self.prop1.reshape(transD.shape)
          self._zeros_border_ids(self.prop1)
 
          return
@@ -595,7 +639,6 @@ class hydrodynamic:
              for i in range(z.shape[0]):
                 for j in range(z.shape[1]):
                    if sedcharge[i,j] > 0. and t_stp == 0:
-                        #suspd = (1.-self.efficiency)*sedcharge[i,j]
                         tdist0 = self.prop0[i,j]*sedcharge[i,j]
                         tdist1 = self.prop1[i,j]*sedcharge[i,j]
                         newcharge[self.ptI0[i,j],self.ptJ0[i,j]] += tdist0
@@ -627,7 +670,7 @@ class hydrodynamic:
          # Diffusion transport
          tw = time.clock()
          dh[1:-1,1:-1] += dt*self.diffusion*( (z[:-2,1:-1]-2*z[1:-1,1:-1]+z[2:,1:-1]) +
-                          (z[1:-1,:-2]-2*z[1:-1,1:-1]+z[1:-1,2:]) )/(self.res**2)
+                          (z[1:-1,:-2]-2*z[1:-1,1:-1]+z[1:-1,2:]) )/(self.res**2*self.secyear)
          self.dh.append(dh+entrain+depo)
          z += dh
          if self.rank == 0:

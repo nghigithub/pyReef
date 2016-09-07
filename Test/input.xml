@@ -67,9 +67,9 @@
 			<!-- Transport efficiency specifies the percentage 
              of suspended versus bedload transport: 0 is for
              purely bedload and 1 for suspended only transport -->
-			<efficiency>1</efficiency>
-			<!-- Diffusion coefficient [m2/s] -->
-			<diffusion>0.00000</diffusion>
+			<efficiency>0.5</efficiency>
+			<!-- Diffusion coefficient [m2/yr] -->
+			<diffusion>1.0</diffusion>
 		</facies>
 	</lithofacies>
 
@@ -253,10 +253,10 @@
 									 degrees -->
 			<spread>20</spread>
 			<!-- Wave breaking depth [m] -->
-			<break>-0.5</break>
+			<break>-1.</break>
 			<!-- Maximum mobile bed thickness [m] needs to be set according to
 					 wave condition interval.-->
-			<bedlayer>0.5</bedlayer>
+			<bedlayer>1.</bedlayer>
 			<!-- Storm (1) or recovery period (0) -->
 			<storm>0</storm>
 		</climate>
