@@ -53,6 +53,7 @@ class map2strat:
 
         self.faciesNb = input.faciesNb
         self.layID = input.stratlays
+        self.sedName = input.faciesName
         self.nx = surf.nx
         self.ny = surf.ny
         self.res = surf.res
@@ -111,27 +112,28 @@ class map2strat:
                 self.y[n,m] = surf.regY[j]
                 n += 1
 
-        self.stratTH = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
-        self.stratPerc = numpy.zeros((self.partnx,self.partny,self.layNb,self.faciesNb),dtype=float)
+        self.stratTH = numpy.zeros((self.partnx,self.partny,self.layNb+1),dtype=float)
+        self.sedTH = numpy.zeros((self.partnx,self.partny,self.layNb+1,self.faciesNb),dtype=float)
 
         # Loop through the underlying layers
         for l in range(self.layID,0,-1):
 
             # Uniform thickness value
             if input.thickMap[l-1] == None:
-                self.stratTH[:,:,l-1] = input.thickVal[l-1]
+                self.stratTH[:,:,l] = input.thickVal[l-1]
 
             # Stratal thickness map
             elif input.thickMap[l-1] != None:
-                self.stratTH[:,:,l-1] = self._load_layer_thmap(input.thickMap[l-1])
+                self.stratTH[:,:,l] = self._load_layer_thmap(input.thickMap[l-1])
 
             # Uniform facies percentages value
             if input.stratMap[l-1] == None:
                 for f in range(0,self.faciesNb):
-                    self.stratPerc[:,:,l-1,f] = input.stratVal[l-1,f]
+                    self.sedTH[:,:,l,f] = input.stratVal[l-1,f]*self.stratTH[:,:,l]
             # Facies percentages map
             elif input.stratMap[l-1] != None:
-                self.stratPerc[:,:,l-1,:] = self._load_layer_percmap(input.stratMap[l-1],self.stratTH[:,:,l-1])
+                perc = self._load_layer_percmap(input.stratMap[l-1],self.stratTH[:,:,l])
+                self.sedTH[:,:,l,:] = perc*self.stratTH[:,:,l]
 
         return
 
@@ -266,14 +268,27 @@ class map2strat:
 
         vtkfile = self.vtkfile+str(outstep)+'.p'+str(self.rank)
 
-        x = numpy.zeros((self.partnx,self.partny,self.layID+1),dtype=float)
-        y = numpy.zeros((self.partnx,self.partny,self.layID+1),dtype=float)
-        z = numpy.zeros((self.partnx,self.partny,self.layID+1),dtype=float)
+        x = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
+        y = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
+        z = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
+        h = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
+        l = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=int)
+        if self.faciesNb>=1:
+            sed0 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
+        if self.faciesNb>=2:
+            sed1 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
+        if self.faciesNb>=3:
+            sed2 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
+        if self.faciesNb>=4:
+            sed3 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
+        if self.faciesNb>=5:
+            sed4 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
+        if self.faciesNb>=6:
+            sed5 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
 
         for k in range(self.layID,-1,-1):
-            x[:,:,k] = self.x[:,:]
-            y[:,:,k] = self.y[:,:]
             m = -1
+
             for j in range(self.j1,self.j2):
                 m += 1
                 n = 0
@@ -281,10 +296,92 @@ class map2strat:
                     if k == self.layID:
                         z[n,m,k] = elev[i,j]
                     else:
-                        z[n,m,k] = z[n,m,k+1] - self.stratTH[n,m,k]
+                        z[n,m,k] = z[n,m,k+1] - self.stratTH[n,m,k+1]
+
+                    if k == 0:
+                        h[n,m,k] = self.stratTH[n,m,k+1]
+                    else:
+                        h[n,m,k] = self.stratTH[n,m,k]
+                    l[:,:,k] = k
+                    if self.faciesNb>=1:
+                        if k == 0 and h[n,m,k]>0:
+                            sed0[n,m,k] = self.sedTH[n,m,k+1,0]/h[n,m,k]
+                        elif h[n,m,k]>0:
+                            sed0[n,m,k] = self.sedTH[n,m,k,0]/h[n,m,k]
+                    if self.faciesNb>=2:
+                        if k == 0 and h[n,m,k]>0:
+                            sed1[n,m,k] = self.sedTH[n,m,k+1,1]/h[n,m,k]
+                        elif h[n,m,k]>0:
+                            sed1[n,m,k] = self.sedTH[n,m,k,1]/h[n,m,k]
+                    if self.faciesNb>=3:
+                        if k == 0 and h[n,m,k]>0:
+                            sed2[n,m,k] = self.sedTH[n,m,k+1,2]/h[n,m,k]
+                        elif h[n,m,k]>0:
+                            sed2[n,m,k] = self.sedTH[n,m,k,2]/h[n,m,k]
+                    if self.faciesNb>=4:
+                        if k == 0 and h[n,m,k]>0:
+                            sed3[n,m,k] = self.sedTH[n,m,k+1,3]/h[n,m,k]
+                        elif h[n,m,k]>0:
+                            sed3[n,m,k] = self.sedTH[n,m,k,3]/h[n,m,k]
+                    if self.faciesNb>=5:
+                        if k == 0 and h[n,m,k]>0:
+                            sed4[n,m,k] = self.sedTH[n,m,k+1,4]/h[n,m,k]
+                        elif h[n,m,k]>0:
+                            sed4[n,m,k] = self.sedTH[n,m,k,4]/h[n,m,k]
+                    if self.faciesNb>=6:
+                        if k == 0 and h[n,m,k]>0:
+                            sed5[n,m,k] = self.sedTH[n,m,k+1,5]/h[n,m,k]
+                        elif h[n,m,k]>0:
+                            sed5[n,m,k] = self.sedTH[n,m,k,5]/h[n,m,k]
                     n += 1
 
-        gridToVTK(vtkfile, x, y, z) #, pointData = {"layer ID" :t})
+        for k in range(0,self.layNb):
+            x[:,:,k] = self.x[:,:]
+            y[:,:,k] = self.y[:,:]
+            if k>self.layID:
+                l[:,:,k] = -1
+                z[:,:,k] = z[:,:,self.layID]
+                h[:,:,k] = h[:,:,self.layID]
+                if self.faciesNb>=1:
+                    sed0[:,:,k] = sed0[:,:,self.layID]
+                if self.faciesNb>=2:
+                    sed1[:,:,k] = sed1[:,:,self.layID]
+                if self.faciesNb>=3:
+                    sed2[:,:,k] = sed2[:,:,self.layID]
+                if self.faciesNb>=4:
+                    sed3[:,:,k] = sed3[:,:,self.layID]
+                if self.faciesNb>=5:
+                    sed4[:,:,k] = sed4[:,:,self.layID]
+                if self.faciesNb>=6:
+                    sed5[:,:,k] = sed5[:,:,self.layID]
+
+
+        if self.faciesNb==1:
+            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
+                      self.sedName[0] : sed0})
+        elif self.faciesNb==2:
+            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
+                      self.sedName[0] : sed0, self.sedName[1] : sed1})
+        elif self.faciesNb==3:
+            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
+                     self.sedName[0] : sed0, self.sedName[1] : sed1,
+                     self.sedName[2] : sed2})
+        elif self.faciesNb==4:
+            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
+                     self.sedName[0] : sed0, self.sedName[1] : sed1,
+                     self.sedName[2] : sed2, self.sedName[3] : sed3})
+        elif self.faciesNb==5:
+            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
+                     self.sedName[0] : sed0, self.sedName[1] : sed1,
+                     self.sedName[2] : sed2, self.sedName[3] : sed3,
+                     self.sedName[4] : sed4})
+        elif self.faciesNb==6:
+            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
+                     self.sedName[0] : sed0, self.sedName[1] : sed1,
+                     self.sedName[2] : sed2, self.sedName[3] : sed3,
+                     self.sedName[4] : sed4, self.sedName[5] : sed5})
+        else:
+            print 'Number of sediment is limited to 6.'
 
         if self.rank == 0:
             self._write_pvd(outstep)

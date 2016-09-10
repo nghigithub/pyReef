@@ -53,9 +53,6 @@ class hydrodynamic:
         self.sl = None
         self.currentU = None
         self.currentD = None
-        self.qt = None
-        self.bedCx = None
-        self.bedCy = None
         self.erosion = None
         self.deprate = None
         self.dSVR = None
@@ -64,6 +61,7 @@ class hydrodynamic:
         self.rho_sed = None
         self.relativeDens = None
         self.kinematic_viscosity = 0.801e-6
+        self.actlay = None
 
         self.xv = xv
         self.yv = yv
@@ -76,8 +74,15 @@ class hydrodynamic:
         self.wres = res * wfac
 
         self.partIDs = partIDs
-        self.i1 = partIDs[self.rank,0]
-        self.i2 = partIDs[self.rank,1]
+
+        if self.rank == 0:
+            self.i1 = self.partIDs[self.rank,0]+1
+        else:
+            self.i1 = self.partIDs[self.rank,0]
+        if self.rank == self.size-1:
+            self.i2 = self.partIDs[self.rank,1]
+        else:
+            self.i2 = self.partIDs[self.rank,1]+1
 
         self.Wfac = wfac
         if self.Wfac > 1:
@@ -163,12 +168,12 @@ class hydrodynamic:
          """
 
          # Define variables for sediment transport
-         self.d50 = input.faciesDiam[-1]
-         self.rho_sed = input.density[-1]
+         self.d50 = input.faciesDiam
+         self.rho_sed = input.density
          self.rho_water = input.waterD
-         self.porosity = input.porosity[-1]
-         self.diffusion = input.diffusion[-1]
-         self.efficiency = input.efficiency[-1]
+         self.porosity = input.porosity
+         self.diffusion = input.diffusion
+         self.efficiency = input.efficiency
 
          self.tSed = input.tSed
          self.tWave = input.tWave
@@ -191,7 +196,7 @@ class hydrodynamic:
 
          return
 
-    def swan_run(self, input, force, z, wID):
+    def swan_run(self, input, force, z, strata, wID, lID):
          """
          This function run swan model and computes near-bed velocity
          combining cross-shore and long-shore component.
@@ -208,8 +213,14 @@ class hydrodynamic:
          variable: z
             Elevation.
 
+         variable: strata
+             Stratigraphic data.
+
          variable: WID
              Wave number ID.
+
+         variable: lID
+             Stratigraphic layer ID.
          """
 
          self.nbtides = 1
@@ -339,7 +350,7 @@ class hydrodynamic:
                     print '   -   Currents model took %0.02f seconds to run.' %(time.clock()-tw)
 
                 # Perform morphological changes
-                self._bed_elevation_change(input, force, z, lvl, len(self.sl)-1)
+                self._bed_elevation_change(input, force, strata, z, lvl, len(self.sl)-1, lID)
 
          return wID
 
@@ -410,42 +421,44 @@ class hydrodynamic:
          smag = self._calcFiniteSlopes(z)
 
          # Initialise total load and deposition rate component
-         self.qt = 0.
-         self.bedCx = 0.
-         self.bedCy = 0.
-         self.erosion = 0.
+         self.erosion = numpy.zeros((z.shape[0],z.shape[1],input.faciesNb))
+
+         depth = sl - z
+         #speed = numpy.sqrt(force.wavU[clim]**2+force.wavV[clim]**2)
+         speed = self.currentU[clim]
 
          # Loop through the different wave climates and store swan output information
-         depth = sl - z
-
          As = numpy.zeros((z.shape[0],z.shape[1]))
          CD = numpy.zeros((z.shape[0],z.shape[1]))
          Ucr = numpy.zeros((z.shape[0],z.shape[1]))
          qt = numpy.zeros((z.shape[0],z.shape[1]))
-
          row,col = numpy.where(depth>0.)
 
-         As[row,col] = 0.005*depth[row,col]*(self.d50/depth[row,col])**1.2
-         As[row,col] += 0.012*self.d50*self.Dstar**(-0.6)
-         As /= self.dSVR
-         CD[row,col] = (0.4/(numpy.log(depth[row,col]/0.006)-1.))**2
+         for sed in range(input.faciesNb):
 
-         if self.d50 <= 0.0005:
-             Ucr[row,col] = 0.19*numpy.log10(4.*depth[row,col]/self.d50)*self.d50**0.1
-         else:
-             Ucr[row,col] = 8.5*numpy.log10(4.*depth[row,col]/self.d50)*self.d50**0.6
+             As.fill(0.)
+             CD.fill(0.)
+             Ucr.fill(0.)
+             qt.fill(0.)
 
-         Ucr[Ucr<0] = 0.
-         frac = (1.-self.porosity)*self.res**2
-         tmp = 1/(1.-self.porosity)
+             As[row,col] = 0.005*depth[row,col]*(self.d50[sed]/depth[row,col])**1.2
+             As[row,col] += 0.012*self.d50[sed]*self.Dstar[sed]**(-0.6)
+             As /= self.dSVR[sed]
+             CD[row,col] = (0.4/(numpy.log(depth[row,col]/0.006)-1.))**2
 
-         # Define total load from Soulsby Van Rijn formulation
-         #speed = numpy.sqrt(force.wavU[clim]**2+force.wavV[clim]**2)
-         speed = self.currentU[clim]
-         qt[row,col] = As[row,col] * speed[row,col] * ( numpy.sqrt(speed[row,col]**2 + \
-            0.018*self.Urms[clim][row,col]/CD[row,col]) - Ucr[row,col] )**2.4 * (1.-1.6*smag[row,col])
-         qt[numpy.isnan(qt)] = 0.
-         self.erosion = qt/frac
+             if self.d50[sed] <= 0.0005:
+                 Ucr[row,col] = 0.19*numpy.log10(4.*depth[row,col]/self.d50[sed])*self.d50[sed]**0.1
+             else:
+                 Ucr[row,col] = 8.5*numpy.log10(4.*depth[row,col]/self.d50[sed])*self.d50[sed]**0.6
+
+             Ucr[Ucr<0] = 0.
+             frac = (1.-self.porosity[sed])*self.res**2
+
+             # Define total load from Soulsby Van Rijn formulation
+             qt[row,col] = As[row,col] * speed[row,col] * ( numpy.sqrt(speed[row,col]**2 + \
+                0.018*self.Urms[clim][row,col]/CD[row,col]) - Ucr[row,col] )**2.4 * (1.-1.6*smag[row,col])
+             qt[numpy.isnan(qt)] = 0.
+             self.erosion[:,:,sed] = qt/frac
 
          return
 
@@ -564,7 +577,55 @@ class hydrodynamic:
 
          return
 
-    def _bed_elevation_change(self, input, force, z, lvl, clim):
+    def _get_layer(self, activelay, strata, lID, sedNb):
+         """
+         This function extracts the active top layer for considered climatic condition.
+
+         Parameters
+         ----------
+
+         variable : activelay
+            Active layer thickness.
+
+         variable: strata
+            Stratigraphic data.
+
+         variable: lID
+            Stratigraphic layer ID.
+
+         variable: sedNb
+            Number of facies.
+
+         """
+         shape = self.erosion.shape
+         self.actlay = numpy.zeros((shape[0],shape[1],sedNb))
+
+         for i in range(self.i1,self.i2):
+            for j in range(1,shape[1]-1):
+                updateH = activelay
+                for l in range(lID,-1,-1):
+                    th = strata.stratTH[i-self.i1,j-1,l]
+                    if th > 0:
+                        perc = strata.sedTH[i-self.i1,j-1,l,:]/th
+                        if th >= updateH:
+                            self.actlay[i,j,0:sedNb] += updateH*perc[0:sedNb]
+                            strata.stratTH[i-self.i1,j-1,l] -= updateH
+                            strata.sedTH[i-self.i1,j-1,l,0:sedNb] -= updateH*perc[0:sedNb]
+                            updateH = 0.
+                        else:
+                            self.actlay[i,j,:] += th*perc
+                            strata.stratTH[i-self.i1,j-1,l] = 0.
+                            strata.sedTH[i-self.i1,j-1,l,:] = 0.
+                            updateH -= th
+                    if updateH <= 0:
+                        break
+         tmp = self.actlay.reshape(shape[0]*shape[1]*sedNb)
+         self.comm.Allreduce(mpi.IN_PLACE, tmp, op=mpi.MAX)
+         self.actlay = tmp.reshape(shape[0],shape[1],sedNb)
+
+         return
+
+    def _bed_elevation_change(self, input, force, strata, z, lvl, clim, lID):
          """
          This function computes the bed elevation change using the second order Lax Wendroff scheme
 
@@ -577,6 +638,9 @@ class hydrodynamic:
          variable: force
             Forcings conditions.
 
+         variable: strata
+            Stratigraphic data.
+
          variable: z
             Elevation.
 
@@ -585,7 +649,12 @@ class hydrodynamic:
 
          variable: clim
             Climatic condition.
+
+         variable: lID
+            Stratigraphic layer ID.
          """
+
+         oldz = numpy.copy(z)
 
          # Initialise morphological changes
          dh = numpy.zeros(z.shape)
@@ -599,14 +668,24 @@ class hydrodynamic:
          self._erosion_component(input, force, z, self.sl[clim], clim)
          entrain = -dt*self.erosion
          if self.sigma>0:
-             entrain = 1.5*gaussian_filter(entrain, self.sigma)
+             for sed in range(input.faciesNb):
+                 entrain[:,:,sed] = 1.5*gaussian_filter(entrain[:,:,sed], self.sigma)
+
+         # Get top layer sediment thicknesses
+         self._get_layer(force.bedLay[clim], strata, lID, input.faciesNb)
 
          # Mobile bed layer thickness limitation
          entrain[entrain>0.] = 0.
-         entrain[entrain<-force.bedLay[clim]] = -force.bedLay[clim]
          r,c = numpy.where(z-self.sl[-1]>=0)
-         entrain[r,c] = 0.
-         z += entrain
+         entrain[r,c,:] = 0.
+         for sed in range(0,input.faciesNb):
+             tmpE = entrain[:,:,sed]
+             r,c = numpy.where(tmpE<-self.actlay[:,:,sed])
+             tmpE[r,c] = -self.actlay[r,c,sed]
+             self.actlay[:,:,sed] += tmpE
+             entrain[:,:,sed] = tmpE
+             z += tmpE
+
          if self.rank == 0:
              print '     +   Erosion computation took %0.02f seconds to run.' %(time.clock()-tw)
 
@@ -632,24 +711,27 @@ class hydrodynamic:
          t_stp = 0
          tmpZ = numpy.copy(z-self.sl[-1])
          sedcharge = -entrain
-         sumload = numpy.sum(sedcharge)
-         depo = numpy.zeros(z.shape)
-         newcharge = numpy.zeros(z.shape)
+         sumload = numpy.zeros(input.faciesNb)
+         for sed in range(input.faciesNb):
+             sumload[sed] = numpy.sum(sedcharge[:,:,sed])
+         depo = numpy.zeros((z.shape[0],z.shape[1],input.faciesNb))
+         newcharge = numpy.zeros((z.shape[0],z.shape[1],input.faciesNb))
          while (numpy.sum(sedcharge) > 0.001 and t_stp <= 5000):
              for i in range(z.shape[0]):
                 for j in range(z.shape[1]):
-                   if sedcharge[i,j] > 0. and t_stp == 0:
-                        tdist0 = self.prop0[i,j]*sedcharge[i,j]
-                        tdist1 = self.prop1[i,j]*sedcharge[i,j]
-                        newcharge[self.ptI0[i,j],self.ptJ0[i,j]] += tdist0
-                        newcharge[self.ptI1[i,j],self.ptJ1[i,j]] += tdist1
-                   # Move sediments to neighbouring cells
-                   elif sedcharge[i,j] > 0.:
-                       depo[i,j] += (1.-self.efficiency)*sedcharge[i,j]
-                       tdist0 = self.prop0[i,j]*self.efficiency*sedcharge[i,j]
-                       tdist1 = self.prop1[i,j]*self.efficiency*sedcharge[i,j]
-                       newcharge[self.ptI0[i,j],self.ptJ0[i,j]] += tdist0
-                       newcharge[self.ptI1[i,j],self.ptJ1[i,j]] += tdist1
+                   for sed in range(input.faciesNb):
+                       if sedcharge[i,j,sed] > 0. and t_stp == 0:
+                            tdist0 = self.prop0[i,j]*sedcharge[i,j,sed]
+                            tdist1 = self.prop1[i,j]*sedcharge[i,j,sed]
+                            newcharge[self.ptI0[i,j],self.ptJ0[i,j],sed] += tdist0
+                            newcharge[self.ptI1[i,j],self.ptJ1[i,j],sed] += tdist1
+                       # Move sediments to neighbouring cells
+                       elif sedcharge[i,j,sed] > 0.:
+                           depo[i,j,sed] += (1.-self.efficiency[sed])*sedcharge[i,j,sed]
+                           tdist0 = self.prop0[i,j]*self.efficiency[sed]*sedcharge[i,j,sed]
+                           tdist1 = self.prop1[i,j]*self.efficiency[sed]*sedcharge[i,j,sed]
+                           newcharge[self.ptI0[i,j],self.ptJ0[i,j],sed] += tdist0
+                           newcharge[self.ptI1[i,j],self.ptJ1[i,j],sed] += tdist1
              sedcharge = numpy.copy(newcharge)
              newcharge.fill(0.)
              t_stp += 1
@@ -659,22 +741,35 @@ class hydrodynamic:
 
          # Combine erosion/deposition and update morphology for suspended load
          if self.sigma>0:
-             depo = 1.5*gaussian_filter(depo, self.sigma)
-         depo[depo<0] = 0.
-         sud = numpy.sum(depo)
-         depo = depo*sumload/sud
-         z += depo
+             for sed in range(input.faciesNb):
+                 tmpD = 1.5*gaussian_filter(depo[:,:,sed], self.sigma)
+                 tmpD[tmpD<0] = 0.
+                 sud = numpy.sum(tmpD)
+                 depo[:,:,sed] = tmpD*sumload[sed]/sud
+
+         # Update stratal top layer
+         for sed in range(input.faciesNb):
+             self.actlay[:,:,sed] += depo[:,:,sed]
+             z += depo[:,:,sed]
+             strata.stratTH[:,:,lID] += self.actlay[self.i1:self.i2,1:-1,sed]
+             strata.sedTH[:,:,lID,sed] += self.actlay[self.i1:self.i2,1:-1,sed]
+         self.dh.append(z-oldz)
+
          if self.rank == 0:
              print '     +   Deposition computation took %0.02f seconds to run and converged in %d iterations.' %(time.clock()-tw,t_stp)
 
          # Diffusion transport
-         tw = time.clock()
-         dh[1:-1,1:-1] += dt*self.diffusion*( (z[:-2,1:-1]-2*z[1:-1,1:-1]+z[2:,1:-1]) +
-                          (z[1:-1,:-2]-2*z[1:-1,1:-1]+z[1:-1,2:]) )/(self.res**2*self.secyear)
-         self.dh.append(dh+entrain+depo)
-         z += dh
-         if self.rank == 0:
-             print '     +   Diffusion computation took %0.02f seconds to run.' %(time.clock()-tw)
+         #tw = time.clock()
+         #for sed in range(input.faciesNb):
+         #  dh = numpy.zeros(z.shape)
+            #  dh[1:-1,1:-1] += dt*self.diffusion[sed]*( (z[:-2,1:-1]-2*z[1:-1,1:-1]+z[2:,1:-1]) +
+            #                   (z[1:-1,:-2]-2*z[1:-1,1:-1]+z[1:-1,2:]) )/(self.res**2*self.secyear)
+            #totDep += dh+entrain[:,:,sed]+depo[:,:,sed]
+         #     z += dh
+
+         #self.dh.append(totH)
+        #  if self.rank == 0:
+        #      print '     +   Diffusion computation took %0.02f seconds to run.' %(time.clock()-tw)
 
          if self.rank == 0:
              print '   -   Morphological change took %0.02f seconds to run.' %(time.clock()-tm)
@@ -682,6 +777,7 @@ class hydrodynamic:
                  print '   -   Mass balance check ok.'
              else:
                  print '   -   Mass balance check: ',numpy.sum(self.dh[-1])
+
 
          return
 

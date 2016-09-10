@@ -106,6 +106,14 @@ class Model(object):
         if self.input.waveOn:
             self.hydro.swan_init(self.input, self.pyGrid.regZ, self.waveID, self.force.sealevel, tide)
 
+        # Create first output
+        self.outSurf.write_hdf5_grid(self.pyGrid.regZ, self.force, self.tNow, self.outputStep)
+        self.pyStrat.write_mesh(self.pyGrid.regZ, self.tNow, self.outputStep)
+        self.force.next_display = self.tNow + self.force.time_display
+        self.force.next_layer = self.tNow + self.force.time_layer
+        self.pyStrat.layID += 1
+        self.outputStep += 1
+
     def run_to_time(self, tEnd, profile=False, verbose=False):
         """
         Run the simulation to a specified point in time (tEnd).
@@ -118,6 +126,9 @@ class Model(object):
             pr = cProfile.Profile()
             pr.enable()
 
+        if self._rank == 0:
+            print 'tNow = %s [yr]' %self.tNow
+
         if tEnd > self.input.tEnd:
             tEnd = self.input.tEnd
             print 'Requested time is set to the simulation end time as defined in the XmL input file'
@@ -125,12 +136,11 @@ class Model(object):
         # Define non-flow related processes times
         if not self.simStarted:
             self.tDisp = self.input.tStart
-            self.force.next_display = self.input.tStart
+            self.force.next_display = self.input.tStart + self.force.time_layer
             self.force.next_disp = self.force.T_disp[0, 0]
             self.force.next_carb = self.input.tStart
             self.exitTime = self.input.tEnd
             self.simStarted = True
-            self.force.next_display = self.input.tStart
 
         # Perform main simulation loop
         while self.tNow < tEnd:
@@ -162,19 +172,6 @@ class Model(object):
             if self.input.phOn:
                 self.force.getph(self.tNow)
 
-            # Update wave parameters
-            if self.input.waveOn:
-                if self.force.next_wave <= self.tNow:
-
-                    # Compute wave field and associated bottom current conditions
-                    self.waveID = self.hydro.swan_run(self.input, self.force, self.pyGrid.regZ, self.waveID)
-
-                    # Perform morphological changes
-                    #self.hydro.bed_elevation_change(self.input, self.force, self.pyGrid.regZ)
-
-                    # Update next wave time step
-                    self.force.next_wave += self.force.time_wave
-
             # Create output
             if self.force.next_display <= self.tNow and self.force.next_display < self.input.tEnd:
                 self.outSurf.write_hdf5_grid(self.pyGrid.regZ, self.force, self.tNow, self.outputStep)
@@ -186,6 +183,17 @@ class Model(object):
             if self.force.next_layer <= self.tNow and self.force.next_layer < self.input.tEnd:
                 self.force.next_layer += self.force.time_layer
                 self.pyStrat.layID += 1
+
+            # Update wave parameters
+            if self.input.waveOn:
+                if self.force.next_wave <= self.tNow:
+
+                    # Compute wave field and associated bottom current conditions
+                    self.waveID = self.hydro.swan_run(self.input, self.force, self.pyGrid.regZ,
+                                                      self.pyStrat, self.waveID, self.pyStrat.layID)
+
+                    # Update next wave time step
+                    self.force.next_wave += self.force.time_wave
 
             # Update vertical displacements
             if self.force.next_disp <= self.tNow and self.force.next_disp < self.input.tEnd:
@@ -201,10 +209,24 @@ class Model(object):
             # Get the maximum time before updating one of the above processes / components
             self.tNow = min([self.force.next_display, tEnd, self.force.next_disp, self.force.next_wave])
 
+            if self._rank == 0:
+                print 'tNow = %s [yr]' %self.tNow
+
         # Finalise SWAN model run
         if self.input.waveOn and self.tNow == self.input.tEnd:
             swan.model.final(self.fcomm)
 
+        if self.force.next_display <= self.tNow:
+            self.outSurf.write_hdf5_grid(self.pyGrid.regZ, self.force, self.tNow, self.outputStep)
+            self.pyStrat.write_mesh(self.pyGrid.regZ, self.tNow, self.outputStep)
+            self.force.next_display += self.force.time_display
+            self.outputStep += 1
+
+        # Add stratigraphic layer
+        if self.force.next_layer <= self.tNow:
+            self.force.next_layer += self.force.time_layer
+            self.pyStrat.layID += 1
+            
         if profile:
             pr.disable()
             s = StringIO.StringIO()
