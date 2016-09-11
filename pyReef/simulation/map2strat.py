@@ -12,6 +12,7 @@ from maps of thicknesses and sediments characteristics.
 """
 
 import os
+import h5py
 import numpy
 import pandas
 import os.path
@@ -65,9 +66,9 @@ class map2strat:
         self.Afac = input.Afactor
 
         self.folder = input.outDir
-        self.pvdfile = self.folder+'/stratal.series.pvd'
-        self.vtkfile = self.folder+'/vtk/stratal.time'
-        self.vtkf = 'vtk/stratal.time'
+        self.xdmffile = self.folder+'/stratal.series.xdmf'
+        self.h5file = 'h5/stratal.time'
+        self.xmffile = 'xmf/stratal.time'
 
         minX = surf.demX.min()
         maxX = surf.demX.max()
@@ -91,6 +92,12 @@ class map2strat:
             self.partnx -= 1
         if self.rank == self.size-1:
             self.partnx -= 1
+
+        self.pnx = numpy.zeros(self.size,dtype=int)
+        for s in range(self.size):
+            self.pnx[s] = surf.partIDs[s,1]-surf.partIDs[s,0]+1
+        self.pnx[0] -= 1
+        self.pnx[self.size-1] -= 1
 
         if self.rank == 0:
             self.i1 = surf.partIDs[self.rank,0]+1
@@ -251,7 +258,7 @@ class map2strat:
 
     def write_mesh(self, elev, time, outstep):
         """
-        Create a vtk unstructured grid based on current time step stratal parameters.
+        Create a hdf5 grid based on current time step stratal parameters.
 
         Parameters
         ----------
@@ -266,29 +273,19 @@ class map2strat:
             Output time step.
         """
 
-        vtkfile = self.vtkfile+str(outstep)+'.p'+str(self.rank)
+        h5file = self.folder+'/'+self.h5file+str(outstep)+'.p'+str(self.rank)+'.hdf5'
 
-        x = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
-        y = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
-        z = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
-        h = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
-        l = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=int)
-        if self.faciesNb>=1:
-            sed0 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
-        if self.faciesNb>=2:
-            sed1 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
-        if self.faciesNb>=3:
-            sed2 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
-        if self.faciesNb>=4:
-            sed3 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
-        if self.faciesNb>=5:
-            sed4 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
-        if self.faciesNb>=6:
-            sed5 = numpy.zeros((self.partnx,self.partny,self.layNb),dtype=float)
+        x = numpy.zeros((self.partnx,self.partny,self.layID+1),dtype=float)
+        y = numpy.zeros((self.partnx,self.partny,self.layID+1),dtype=float)
+        z = numpy.zeros((self.partnx,self.partny,self.layID+1),dtype=float)
+        h = numpy.zeros((self.partnx,self.partny,self.layID+1),dtype=float)
+        l = numpy.zeros((self.partnx,self.partny,self.layID+1),dtype=int)
+        sed = numpy.zeros((self.partnx,self.partny,self.layID+1,self.faciesNb),dtype=float)
 
         for k in range(self.layID,-1,-1):
+            x[:,:,k] = self.x[:,:]
+            y[:,:,k] = self.y[:,:]
             m = -1
-
             for j in range(self.j1,self.j2):
                 m += 1
                 n = 0
@@ -303,87 +300,132 @@ class map2strat:
                     else:
                         h[n,m,k] = self.stratTH[n,m,k]
                     l[:,:,k] = k
-                    if self.faciesNb>=1:
+                    for s in range(self.faciesNb):
                         if k == 0 and h[n,m,k]>0:
-                            sed0[n,m,k] = self.sedTH[n,m,k+1,0]/h[n,m,k]
+                            sed[n,m,k,s] = self.sedTH[n,m,k+1,s]/h[n,m,k]
                         elif h[n,m,k]>0:
-                            sed0[n,m,k] = self.sedTH[n,m,k,0]/h[n,m,k]
-                    if self.faciesNb>=2:
-                        if k == 0 and h[n,m,k]>0:
-                            sed1[n,m,k] = self.sedTH[n,m,k+1,1]/h[n,m,k]
-                        elif h[n,m,k]>0:
-                            sed1[n,m,k] = self.sedTH[n,m,k,1]/h[n,m,k]
-                    if self.faciesNb>=3:
-                        if k == 0 and h[n,m,k]>0:
-                            sed2[n,m,k] = self.sedTH[n,m,k+1,2]/h[n,m,k]
-                        elif h[n,m,k]>0:
-                            sed2[n,m,k] = self.sedTH[n,m,k,2]/h[n,m,k]
-                    if self.faciesNb>=4:
-                        if k == 0 and h[n,m,k]>0:
-                            sed3[n,m,k] = self.sedTH[n,m,k+1,3]/h[n,m,k]
-                        elif h[n,m,k]>0:
-                            sed3[n,m,k] = self.sedTH[n,m,k,3]/h[n,m,k]
-                    if self.faciesNb>=5:
-                        if k == 0 and h[n,m,k]>0:
-                            sed4[n,m,k] = self.sedTH[n,m,k+1,4]/h[n,m,k]
-                        elif h[n,m,k]>0:
-                            sed4[n,m,k] = self.sedTH[n,m,k,4]/h[n,m,k]
-                    if self.faciesNb>=6:
-                        if k == 0 and h[n,m,k]>0:
-                            sed5[n,m,k] = self.sedTH[n,m,k+1,5]/h[n,m,k]
-                        elif h[n,m,k]>0:
-                            sed5[n,m,k] = self.sedTH[n,m,k,5]/h[n,m,k]
+                            sed[n,m,k,s] = self.sedTH[n,m,k,s]/h[n,m,k]
                     n += 1
 
-        for k in range(0,self.layNb):
-            x[:,:,k] = self.x[:,:]
-            y[:,:,k] = self.y[:,:]
-            if k>self.layID:
-                l[:,:,k] = -1
-                z[:,:,k] = z[:,:,self.layID]
-                h[:,:,k] = h[:,:,self.layID]
-                if self.faciesNb>=1:
-                    sed0[:,:,k] = sed0[:,:,self.layID]
-                if self.faciesNb>=2:
-                    sed1[:,:,k] = sed1[:,:,self.layID]
-                if self.faciesNb>=3:
-                    sed2[:,:,k] = sed2[:,:,self.layID]
-                if self.faciesNb>=4:
-                    sed3[:,:,k] = sed3[:,:,self.layID]
-                if self.faciesNb>=5:
-                    sed4[:,:,k] = sed4[:,:,self.layID]
-                if self.faciesNb>=6:
-                    sed5[:,:,k] = sed5[:,:,self.layID]
+        xyz = numpy.zeros((self.partnx*self.partny*(self.layID+1),3))
+        th = numpy.zeros((self.partnx*self.partny*(self.layID+1)))
+        layI = numpy.zeros((self.partnx*self.partny*(self.layID+1)),dtype=int)
+        sedI = numpy.zeros((self.partnx*self.partny*(self.layID+1),self.faciesNb))
 
+        p = 0
+        for k in range(0,self.layID+1):
+            for j in range(0,self.partny):
+                for i in range(0,self.partnx):
+                    xyz[p,0] = x[i,j,k]
+                    xyz[p,1] = y[i,j,k]
+                    xyz[p,2] = z[i,j,k]
+                    th[p] = h[i,j,k]
+                    layI[p] = l[i,j,k]
+                    for s in range(0,self.faciesNb):
+                        sedI[p,s] = sed[i,j,k,s]
+                    p += 1
 
-        if self.faciesNb==1:
-            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
-                      self.sedName[0] : sed0})
-        elif self.faciesNb==2:
-            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
-                      self.sedName[0] : sed0, self.sedName[1] : sed1})
-        elif self.faciesNb==3:
-            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
-                     self.sedName[0] : sed0, self.sedName[1] : sed1,
-                     self.sedName[2] : sed2})
-        elif self.faciesNb==4:
-            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
-                     self.sedName[0] : sed0, self.sedName[1] : sed1,
-                     self.sedName[2] : sed2, self.sedName[3] : sed3})
-        elif self.faciesNb==5:
-            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
-                     self.sedName[0] : sed0, self.sedName[1] : sed1,
-                     self.sedName[2] : sed2, self.sedName[3] : sed3,
-                     self.sedName[4] : sed4})
-        elif self.faciesNb==6:
-            gridToVTK(vtkfile, x, y, z, pointData = {"layer thickness" :h, "layer number" : l,
-                     self.sedName[0] : sed0, self.sedName[1] : sed1,
-                     self.sedName[2] : sed2, self.sedName[3] : sed3,
-                     self.sedName[4] : sed4, self.sedName[5] : sed5})
-        else:
-            print 'Number of sediment is limited to 6.'
+        nbpoints = len(layI)
+        with h5py.File(h5file, "w") as f:
+            # Write node coordinates
+            f.create_dataset('xyz',shape=(nbpoints,3), dtype='float32', compression='gzip')
+            f["xyz"][:,:] = xyz
+            # Write thicknesses
+            f.create_dataset('th',shape=(nbpoints,1), dtype='float32', compression='gzip')
+            f["th"][:,0] = th
+            # Write layer ID
+            f.create_dataset('layI',shape=(nbpoints,1), dtype='int32', compression='gzip')
+            f["layI"][:,0] = layI
+            # Write sediment percentages
+            for s in range(0,self.faciesNb):
+                f.create_dataset('sed'+str(s),shape=(nbpoints,1), dtype='float32', compression='gzip')
+                f["sed"+str(s)][:,0] = sedI[:,s]
 
         if self.rank == 0:
-            self._write_pvd(outstep)
+            self._write_xmf(time, outstep)
+
+        return
+
+    def _write_xmf(self, time, step):
+         """
+         This function writes the XmF file which is calling each HFD5 file.
+
+         Parameters
+         ----------
+
+        variable : time
+            Simulation current time step.
+
+         variable: step
+             Output visualisation step.
+         """
+
+         xmf_file = self.folder+'/'+self.xmffile+str(step)+'.xmf'
+         f= open(str(xmf_file),'w')
+
+         f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+         f.write('<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd">\n')
+         f.write('<Xdmf Version="2.0" xmlns:xi="http://www.w3.org/2001/XInclude">\n')
+         f.write(' <Domain>\n')
+         f.write('    <Grid GridType="Collection" CollectionType="Spatial">\n')
+         f.write('      <Time Type="Single" Value="%s"/>\n'%time)
+
+         for p in range(self.size):
+             datfile = self.h5file+str(step)+'.p'+str(p)+'.hdf5'
+             f.write('      <Grid Name="Block.%s">\n' %(str(p)))
+             f.write('         <Topology TopologyType="3DSMesh" Dimensions="%d %d %d"/>\n'%(self.layID+1,self.partny,self.pnx[p]))
+             f.write('         <Geometry GeometryType="XYZ">\n')
+             f.write('            <DataItem Dimensions="%d %d %d 3" Format="HDF" NumberType="Float" Precision="4" '%(self.pnx[p],self.partny,self.layID+1))
+             f.write('>%s:/xyz</DataItem>\n'%(datfile))
+             f.write('         </Geometry>\n')
+             f.write('         <Attribute Type="Scalar" Center="Node" Name="Thickness">\n')
+             f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d %d" '%(self.pnx[p],self.partny,self.layID+1))
+             f.write('>%s:/th</DataItem>\n'%(datfile))
+             f.write('         </Attribute>\n')
+             f.write('         <Attribute Type="Scalar" Center="Node" Name="Layer ID">\n')
+             f.write('            <DataItem Format="HDF" NumberType="Int" Dimensions="%d %d %d" '%(self.pnx[p],self.partny,self.layID+1))
+             f.write('>%s:/layI</DataItem>\n'%(datfile))
+             f.write('         </Attribute>\n')
+             for s in range(self.faciesNb):
+                 f.write('         <Attribute Type="Scalar" Center="Node" Name="%s">\n'%self.sedName[s])
+                 f.write('            <DataItem Format="HDF" NumberType="Float" Precision="4" Dimensions="%d %d 1%d" '%(self.pnx[p],self.partny,self.layID+1))
+                 f.write('>%s:/sed%d</DataItem>\n'%(datfile,s))
+                 f.write('         </Attribute>\n')
+             f.write('      </Grid>\n')
+
+         f.write('    </Grid>\n')
+         f.write(' </Domain>\n')
+         f.write('</Xdmf>\n')
+         f.close()
+
+         self._write_xdmf(step)
+
+         return
+
+    def _write_xdmf(self, step):
+        """
+        This function writes the XDmF file which is calling the XmF file.
+
+        Parameters
+        ----------
+
+        variable: step
+            Output visualisation step.
+        """
+
+        f= open(self.xdmffile,'w')
+
+        f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        f.write('<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd">\n')
+        f.write('<Xdmf Version="2.0" xmlns:xi="http://www.w3.org/2001/XInclude">\n')
+        f.write(' <Domain>\n')
+        f.write('    <Grid GridType="Collection" CollectionType="Temporal">\n')
+        for p in range(step+1):
+            xfile = self.xmffile+str(p)+'.xmf'
+            f.write('      <xi:include href="%s" xpointer="xpointer(//Xdmf/Domain/Grid)"/>\n' %xfile)
+        f.write('    </Grid>\n')
+        f.write(' </Domain>\n')
+        f.write('</Xdmf>\n')
+        f.close()
 
         return

@@ -761,7 +761,7 @@ class xmlParser:
             os.makedirs(self.outDir)
             os.makedirs(self.outDir+'/h5')
             os.makedirs(self.outDir+'/xmf')
-            os.makedirs(self.outDir+'/vtk')
+            #os.makedirs(self.outDir+'/vtk')
             if self.waveOn:
                 os.makedirs(self.outDir+'/swan')
 
