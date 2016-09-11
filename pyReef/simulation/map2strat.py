@@ -19,7 +19,6 @@ import os.path
 import mpi4py.MPI as mpi
 
 from scipy import interpolate
-from pyevtk.hl import gridToVTK
 
 class map2strat:
     """
@@ -227,34 +226,6 @@ class map2strat:
                     perc[i,j,:] = 0.
 
         return perc
-
-    def _write_pvd(self, step):
-        """
-        This function writes the PVD file which is calling vtk mesh files.
-
-        Parameters
-        ----------
-
-        variable: step
-            Output visualisation step.
-        """
-
-        f= open(self.pvdfile,'w')
-
-        f.write('<?xml version="1.0"?>\n')
-        f.write('<VTKFile type="Collection" version="0.1"\n')
-        f.write('       byte_order="LittleEndian" \n       compressor="vtkZLibDataCompressor">\n')
-        f.write('   <Collection>\n')
-        for k in range(step+1):
-            time = self.outTime[k]
-            for p in range(self.size):
-                xfile = self.vtkf+str(k)+'.p'+str(p)+'.vts'
-                f.write('       <DataSet timestep="%f" part="%d" file="%s"/>\n' %(time,p,xfile))
-        f.write('   </Collection>\n')
-        f.write('</VTKFile>\n')
-        f.close()
-
-        return
 
     def write_mesh(self, elev, time, outstep):
         """
