@@ -235,8 +235,6 @@ class xmlParser:
             element = litho.find('faciesNb')
             if element is not None:
                 self.faciesNb = int(element.text)
-                if self.faciesNb > 6:
-                    raise ValueError('Number of facies is limited to 6')
             else:
                 raise ValueError('Error in the definition of the lithofacies: number of facies is required')
             element = None
