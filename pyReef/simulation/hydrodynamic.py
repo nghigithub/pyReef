@@ -20,7 +20,7 @@ from collections import OrderedDict
 from matplotlib import _cntr as cntr
 from scipy.interpolate import interpn
 from scipy.ndimage.filters import gaussian_filter
-from shapely.geometry import LineString, LinearRing
+#from shapely.geometry import LineString, LinearRing
 
 from pyReef.libUtils  import simswan as swan
 from scipy import interpolate
@@ -91,20 +91,20 @@ class hydrodynamic:
             ny = int(len(yv)/self.Wfac)
             self.swanY = numpy.linspace(yv.min(), yv.max(), num=ny)
 
-        self.ring = LinearRing([(-res, -res),(0,-res),(res,-res), (res,0),(res, res),(0, res),(-res,res),(-res,0)])
-        self.pairs = list(self._setpairs(list(self.ring.coords)))
+        # self.ring = LinearRing([(-res, -res),(0,-res),(res,-res), (res,0),(res, res),(0, res),(-res,res),(-res,0)])
+        # self.pairs = list(self._setpairs(list(self.ring.coords)))
 
         self.idI = None
         self.idJ = None
 
         return
 
-    def _setpairs(self, lst):
-
-         for i in range(1, len(lst)):
-             yield lst[i-1], lst[i]
-
-         return
+    # def _setpairs(self, lst):
+    #
+    #      for i in range(1, len(lst)):
+    #          yield lst[i-1], lst[i]
+    #
+    #      return
 
     def _interpolate_to_wavegrid(self, elev):
          """
@@ -477,7 +477,107 @@ class hydrodynamic:
          data[:,0] = 0
          data[:,-1] = 0
 
-    def _sediment_distribution(self, transD):
+    # def _sediment_distribution(self, transD):
+    #      """
+    #      Define intersection points based on transport direction and specify for each nodes
+    #      the proportion of sediment which moves to its neighborhood
+    #
+    #      Parameters
+    #      ----------
+    #
+    #      variable: transD
+    #         Transport direction.
+    #      """
+    #
+    #      trans = transD[self.i1:self.i2,:]
+    #
+    #      lptI0 = numpy.zeros(transD.shape,dtype=int)
+    #      lptI0.fill(-100)
+    #      lptI1 = numpy.zeros(transD.shape,dtype=int)
+    #      lptI1.fill(-100)
+    #      lptJ0 = numpy.zeros(transD.shape,dtype=int)
+    #      lptJ0.fill(-100)
+    #      lptJ1 = numpy.zeros(transD.shape,dtype=int)
+    #      lptJ1.fill(-100)
+    #      lprop0 = numpy.zeros(transD.shape)
+    #      lprop0.fill(-100.)
+    #      lprop1 = numpy.zeros(transD.shape)
+    #      lprop1.fill(-100.)
+    #
+    #      listPts = [[(0,0),(self.res*2.*numpy.cos(trans[x,y]),self.res*2.*numpy.sin(trans[x,y]))]
+    #                 for x in range(trans.shape[0]) for y in range(trans.shape[1])]
+    #      ls = [LineString(lP) for lP in listPts]
+    #      pts = [l.intersection(self.ring) for l in ls]
+    #      xy = numpy.asarray([p.coords[0] for p in pts])
+    #
+    #      ptI0 = numpy.zeros(len(pts),dtype=int)
+    #      ptI1 = numpy.zeros(len(pts),dtype=int)
+    #      ptJ0 = numpy.zeros(len(pts),dtype=int)
+    #      ptJ1 = numpy.zeros(len(pts),dtype=int)
+    #      prop0 = numpy.zeros(len(pts))
+    #      prop1 = numpy.zeros(len(pts))
+    #
+    #      for p in range(len(pts)):
+    #         for pair in self.pairs:
+    #             if LineString([pair[0],pair[1]]).contains(pts[p]):
+    #                 x0,y0 = LineString([pair[0],pair[1]]).coords[0]
+    #                 x1,y1 = LineString([pair[0],pair[1]]).coords[1]
+    #                 ptI0[p],ptJ0[p] = int(x0/self.res),int(y0/self.res)
+    #                 ptI1[p],ptJ1[p] = int(x1/self.res),int(y1/self.res)
+    #                 dist0 = numpy.sqrt((x0-xy[p,0])**2+(y0-xy[p,1])**2)
+    #                 dist1 = numpy.sqrt((x1-xy[p,0])**2+(y1-xy[p,1])**2)
+    #                 p0 = dist0/(dist0+dist1)
+    #                 if p0 > 1:
+    #                     p0 = 1.
+    #                 p1 = 1-p0
+    #                 prop0[p] = p1
+    #                 prop1[p] = p0
+    #                 break
+    #
+    #      lptI0[self.i1:self.i2,:] =  ptI0.reshape(trans.shape)
+    #      lptI1[self.i1:self.i2,:] =  ptI1.reshape(trans.shape)
+    #      lptJ0[self.i1:self.i2,:] =  ptJ0.reshape(trans.shape)
+    #      lptJ1[self.i1:self.i2,:] =  ptJ1.reshape(trans.shape)
+    #      lprop0[self.i1:self.i2,:] =  prop0.reshape(trans.shape)
+    #      lprop1[self.i1:self.i2,:] =  prop1.reshape(trans.shape)
+    #
+    #      self.ptI0 = lptI0.flatten()
+    #      self.comm.Allreduce(mpi.IN_PLACE, self.ptI0, op=mpi.MAX)
+    #      self.ptI0 = self.ptI0.reshape(transD.shape)
+    #      self._zeros_border_ids(self.ptI0)
+    #      self.ptI0 += self.idI
+    #
+    #      self.ptI1 = lptI1.flatten()
+    #      self.comm.Allreduce(mpi.IN_PLACE, self.ptI1, op=mpi.MAX)
+    #      self.ptI1 = self.ptI1.reshape(transD.shape)
+    #      self._zeros_border_ids(self.ptI1)
+    #      self.ptI1 += self.idI
+    #
+    #      self.ptJ0 = lptJ0.flatten()
+    #      self.comm.Allreduce(mpi.IN_PLACE, self.ptJ0, op=mpi.MAX)
+    #      self.ptJ0 = self.ptJ0.reshape(transD.shape)
+    #      self._zeros_border_ids(self.ptJ0)
+    #      self.ptJ0 += self.idJ
+    #
+    #      self.ptJ1 = lptJ1.flatten()
+    #      self.comm.Allreduce(mpi.IN_PLACE, self.ptJ1, op=mpi.MAX)
+    #      self.ptJ1 = self.ptJ1.reshape(transD.shape)
+    #      self._zeros_border_ids(self.ptJ1)
+    #      self.ptJ1 += self.idJ
+    #
+    #      self.prop0 = lprop0.flatten()
+    #      self.comm.Allreduce(mpi.IN_PLACE, self.prop0, op=mpi.MAX)
+    #      self.prop0 = self.prop0.reshape(transD.shape)
+    #      self._zeros_border_ids(self.prop0)
+    #
+    #      self.prop1 = lprop1.flatten()
+    #      self.comm.Allreduce(mpi.IN_PLACE, self.prop1, op=mpi.MAX)
+    #      self.prop1 = self.prop1.reshape(transD.shape)
+    #      self._zeros_border_ids(self.prop1)
+    #
+    #      return
+
+    def _sediment_distribution_quick(self, transD):
          """
          Define intersection points based on transport direction and specify for each nodes
          the proportion of sediment which moves to its neighborhood
@@ -489,91 +589,92 @@ class hydrodynamic:
             Transport direction.
          """
 
-         trans = transD[self.i1:self.i2,:]
+         transD = (transD+2*numpy.pi)%(2*numpy.pi)
+         ptI0 = numpy.zeros(transD.shape,dtype=int)
+         ptI1 = numpy.zeros(transD.shape,dtype=int)
+         ptJ0 = numpy.zeros(transD.shape,dtype=int)
+         ptJ1 = numpy.zeros(transD.shape,dtype=int)
+         prop0 = numpy.zeros(transD.shape)
+         prop1 = numpy.zeros(transD.shape)
 
-         lptI0 = numpy.zeros(transD.shape,dtype=int)
-         lptI0.fill(-100)
-         lptI1 = numpy.zeros(transD.shape,dtype=int)
-         lptI1.fill(-100)
-         lptJ0 = numpy.zeros(transD.shape,dtype=int)
-         lptJ0.fill(-100)
-         lptJ1 = numpy.zeros(transD.shape,dtype=int)
-         lptJ1.fill(-100)
-         lprop0 = numpy.zeros(transD.shape)
-         lprop0.fill(-100.)
-         lprop1 = numpy.zeros(transD.shape)
-         lprop1.fill(-100.)
+         # from 7pi/4 to pi/4
+         r,c = numpy.where(numpy.logical_and(transD>=0.,transD<=numpy.pi/4.))
+         ptI0[r,c] = 1
+         ptJ0[r,c] = 0
+         ptI1[r,c] = 1
+         ptJ1[r,c] = 1
+         prop1[r,c] = numpy.tan(transD[r,c])
+         prop0[r,c] = 1.-prop1[r,c]
+         r,c = numpy.where(numpy.logical_and(transD>=7.*numpy.pi/4.,transD<2.*numpy.pi))
+         ptI0[r,c] = 1
+         ptJ0[r,c] = -1
+         ptI1[r,c] = 1
+         ptJ1[r,c] = 0
+         prop0[r,c] = abs(numpy.tan(transD[r,c]))
+         prop1[r,c] = 1.-prop0[r,c]
 
-         listPts = [[(0,0),(self.res*2.*numpy.cos(trans[x,y]),self.res*2.*numpy.sin(trans[x,y]))]
-                    for x in range(trans.shape[0]) for y in range(trans.shape[1])]
-         ls = [LineString(lP) for lP in listPts]
-         pts = [l.intersection(self.ring) for l in ls]
-         xy = numpy.asarray([p.coords[0] for p in pts])
+         # from pi/4 to 3pi/4
+         r,c = numpy.where(numpy.logical_and(transD>numpy.pi/4.,transD<=numpy.pi/2))
+         ptI0[r,c] = 1
+         ptJ0[r,c] = 1
+         ptI1[r,c] = 0
+         ptJ1[r,c] = 1
+         prop0[r,c] = abs(1/numpy.tan(transD[r,c]))
+         prop1[r,c] = 1.-prop0[r,c]
+         r,c = numpy.where(numpy.logical_and(transD>numpy.pi/2.,transD<=3*numpy.pi/4))
+         ptI0[r,c] = 0
+         ptJ0[r,c] = 1
+         ptI1[r,c] = -1
+         ptJ1[r,c] = 1
+         prop1[r,c] = abs(1/numpy.tan(transD[r,c]))
+         prop0[r,c] = 1.-prop1[r,c]
 
-         ptI0 = numpy.zeros(len(pts),dtype=int)
-         ptI1 = numpy.zeros(len(pts),dtype=int)
-         ptJ0 = numpy.zeros(len(pts),dtype=int)
-         ptJ1 = numpy.zeros(len(pts),dtype=int)
-         prop0 = numpy.zeros(len(pts))
-         prop1 = numpy.zeros(len(pts))
+         # from 3pi/4 to 5pi/4
+         r,c = numpy.where(numpy.logical_and(transD>3*numpy.pi/4.,transD<=numpy.pi))
+         ptI0[r,c] = -1
+         ptJ0[r,c] = 1
+         ptI1[r,c] = -1
+         ptJ1[r,c] = 0
+         prop0[r,c] = abs(numpy.tan(transD[r,c]))
+         prop1[r,c] = 1.-prop0[r,c]
+         r,c = numpy.where(numpy.logical_and(transD>numpy.pi,transD<=5*numpy.pi/4))
+         ptI0[r,c] = -1
+         ptJ0[r,c] = 0
+         ptI1[r,c] = -1
+         ptJ1[r,c] = -1
+         prop1[r,c] = abs(numpy.tan(transD[r,c]))
+         prop0[r,c] = 1.-prop1[r,c]
 
-         for p in range(len(pts)):
-            for pair in self.pairs:
-                if LineString([pair[0],pair[1]]).contains(pts[p]):
-                    x0,y0 = LineString([pair[0],pair[1]]).coords[0]
-                    x1,y1 = LineString([pair[0],pair[1]]).coords[1]
-                    ptI0[p],ptJ0[p] = int(x0/self.res),int(y0/self.res)
-                    ptI1[p],ptJ1[p] = int(x1/self.res),int(y1/self.res)
-                    dist0 = numpy.sqrt((x0-xy[p,0])**2+(y0-xy[p,1])**2)
-                    dist1 = numpy.sqrt((x1-xy[p,0])**2+(y1-xy[p,1])**2)
-                    p0 = dist0/(dist0+dist1)
-                    if p0 > 1:
-                        p0 = 1.
-                    p1 = 1-p0
-                    prop0[p] = p1
-                    prop1[p] = p0
-                    break
+         # from 5pi/4 to 7pi/4
+         r,c = numpy.where(numpy.logical_and(transD>5*numpy.pi/4.,transD<=3*numpy.pi/2))
+         ptI0[r,c] = -1
+         ptJ0[r,c] = -1
+         ptI1[r,c] = 0
+         ptJ1[r,c] = -1
+         prop0[r,c] = abs(1/numpy.tan(transD[r,c]))
+         prop1[r,c] = 1.-prop0[r,c]
+         r,c = numpy.where(numpy.logical_and(transD>3*numpy.pi/2,transD<=7*numpy.pi/4))
+         ptI0[r,c] = 0
+         ptJ0[r,c] = -1
+         ptI1[r,c] = 1
+         ptJ1[r,c] = -1
+         prop1[r,c] = abs(1/numpy.tan(transD[r,c]))
+         prop0[r,c] = 1.-prop1[r,c]
 
-         lptI0[self.i1:self.i2,:] =  ptI0.reshape(trans.shape)
-         lptI1[self.i1:self.i2,:] =  ptI1.reshape(trans.shape)
-         lptJ0[self.i1:self.i2,:] =  ptJ0.reshape(trans.shape)
-         lptJ1[self.i1:self.i2,:] =  ptJ1.reshape(trans.shape)
-         lprop0[self.i1:self.i2,:] =  prop0.reshape(trans.shape)
-         lprop1[self.i1:self.i2,:] =  prop1.reshape(trans.shape)
+         self._zeros_border_ids(ptI0)
+         self.ptI0 = ptI0 + self.idI
+         self._zeros_border_ids(ptI1)
+         self.ptI1 = ptI1 + self.idI
 
-         self.ptI0 = lptI0.flatten()
-         self.comm.Allreduce(mpi.IN_PLACE, self.ptI0, op=mpi.MAX)
-         self.ptI0 = self.ptI0.reshape(transD.shape)
-         self._zeros_border_ids(self.ptI0)
-         self.ptI0 += self.idI
+         self._zeros_border_ids(ptJ0)
+         self.ptJ0 = ptJ0 + self.idJ
+         self._zeros_border_ids(ptJ1)
+         self.ptJ1 = ptJ1 + self.idJ
 
-         self.ptI1 = lptI1.flatten()
-         self.comm.Allreduce(mpi.IN_PLACE, self.ptI1, op=mpi.MAX)
-         self.ptI1 = self.ptI1.reshape(transD.shape)
-         self._zeros_border_ids(self.ptI1)
-         self.ptI1 += self.idI
-
-         self.ptJ0 = lptJ0.flatten()
-         self.comm.Allreduce(mpi.IN_PLACE, self.ptJ0, op=mpi.MAX)
-         self.ptJ0 = self.ptJ0.reshape(transD.shape)
-         self._zeros_border_ids(self.ptJ0)
-         self.ptJ0 += self.idJ
-
-         self.ptJ1 = lptJ1.flatten()
-         self.comm.Allreduce(mpi.IN_PLACE, self.ptJ1, op=mpi.MAX)
-         self.ptJ1 = self.ptJ1.reshape(transD.shape)
-         self._zeros_border_ids(self.ptJ1)
-         self.ptJ1 += self.idJ
-
-         self.prop0 = lprop0.flatten()
-         self.comm.Allreduce(mpi.IN_PLACE, self.prop0, op=mpi.MAX)
-         self.prop0 = self.prop0.reshape(transD.shape)
-         self._zeros_border_ids(self.prop0)
-
-         self.prop1 = lprop1.flatten()
-         self.comm.Allreduce(mpi.IN_PLACE, self.prop1, op=mpi.MAX)
-         self.prop1 = self.prop1.reshape(transD.shape)
-         self._zeros_border_ids(self.prop1)
+         self._zeros_border_ids(prop0)
+         self._zeros_border_ids(prop1)
+         self.prop0 = prop0
+         self.prop1 = prop1
 
          return
 
@@ -700,7 +801,9 @@ class hydrodynamic:
          transD[r,c] = numpy.arctan2(force.wavV[clim][r,c],force.wavU[clim][r,c])
 
          # Define sediment distribution based on transport direction
-         self._sediment_distribution(transD)
+         #self._sediment_distribution(transD)
+         self._sediment_distribution_quick(transD)
+
          if self.rank == 0:
             print '     +   Transport streamlines took %0.02f seconds to run.' %(time.clock()-tw)
 
