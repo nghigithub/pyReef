@@ -45,7 +45,6 @@ class map2strat:
 
         self.layNb = int((input.tEnd - input.tStart)/input.laytime)+input.stratlays+1
 
-
         self.outTime = numpy.zeros(self.layNb,dtype=float)
         self.outTime[0] = input.tStart
         for k in range(1,self.layNb):
@@ -80,7 +79,6 @@ class map2strat:
         if self.Afac != 1:
             self.demX = numpy.arange(minX,maxX+demRes,demRes)
             self.demY = numpy.arange(minY,maxY+demRes,demRes)
-
 
         self.partny = surf.ny - 2
         self.j1 = 1

@@ -78,6 +78,7 @@ class forceSim:
         self.next_wave = None
         self.next_disp = None
         self.next_carb = None
+        self.next_diff = None
         self.time_layer = input.laytime
         self.time_wave = input.tWave
         self.time_display = input.tDisplay

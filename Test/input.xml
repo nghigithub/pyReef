@@ -20,12 +20,12 @@
 		<start>0.</start>
 		<!-- Simulation end time [a] -->
 		<end>10.</end>
-		<!-- Time step [a] -->
-		<dt>0.5</dt>
+		<!-- Time step for carbonate module [a] -->
+		<tcarb>0.5</tcarb>
 		<!-- Update wave conditions interval [a] -->
 		<twave>0.25</twave>
-		<!-- Maximum time step for sediment transport [minutes] -->
-		<tsed>30.</tsed>
+		<!-- Time step for diffusion module [a] -->
+		<tdiff>0.25</tdiff>
 		<!-- Display interval [a] -->
 		<display>2</display>
 		<!-- Stratigraphic layer interval [a] -->
@@ -38,6 +38,8 @@
 		<faciesNb>2</faciesNb>
 		<!-- Sea water density [kg/m3] -->
 		<waterD>1010</waterD>
+		<!-- Diffusion layer thickness [m] -->
+		<diffH>1.</diffH>
 		<!-- Facies definition -->
 		<facies>
 			<!-- Facies name needs to be lower than 10 characters -->

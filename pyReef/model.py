@@ -137,6 +137,7 @@ class Model(object):
         if not self.simStarted:
             self.tDisp = self.input.tStart
             self.force.next_display = self.input.tStart + self.force.time_layer
+            self.force.next_diff =  self.input.tStart + self.input.tDiff
             self.force.next_disp = self.force.T_disp[0, 0]
             self.force.next_carb = self.input.tStart
             self.exitTime = self.input.tEnd
@@ -168,7 +169,7 @@ class Model(object):
             if self.input.tideOn:
                 self.force.getTidalRange(self.tNow)
 
-            # Get ocean ph at start time
+            # Update ocean range value
             if self.input.phOn:
                 self.force.getph(self.tNow)
 
@@ -202,9 +203,14 @@ class Model(object):
 
             # Update carbonate parameters
             if self.force.next_carb <= self.tNow and self.force.next_carb < self.input.tEnd:
-                self.force.next_carb += self.input.dt
+                self.force.next_carb += self.input.tCarb
                 # if self.force.next_carb > self.force.next_display:
                 #     self.force.next_carb = self.force.next_display
+
+            # Perform diffusion
+            if self.force.next_diff <= self.tNow and self.force.next_diff < self.input.tEnd:
+                self.hydro.multidiff(self.input, self.pyStrat, self.pyGrid.regZ, self.pyStrat.layID)
+                self.force.next_diff += self.input.tDiff
 
             # Get the maximum time before updating one of the above processes / components
             self.tNow = min([self.force.next_display, tEnd, self.force.next_disp, self.force.next_wave])
@@ -226,7 +232,7 @@ class Model(object):
         if self.force.next_layer <= self.tNow:
             self.force.next_layer += self.force.time_layer
             self.pyStrat.layID += 1
-            
+
         if profile:
             pr.disable()
             s = StringIO.StringIO()

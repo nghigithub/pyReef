@@ -20,9 +20,10 @@ from collections import OrderedDict
 from matplotlib import _cntr as cntr
 from scipy.interpolate import interpn
 from scipy.ndimage.filters import gaussian_filter
-#from shapely.geometry import LineString, LinearRing
 
 from pyReef.libUtils  import simswan as swan
+from pyReef.libUtils  import diffusion as diffu
+
 from scipy import interpolate
 from scipy.ndimage.filters import gaussian_filter
 
@@ -41,13 +42,13 @@ class hydrodynamic:
         self.nbtides = 1
         self.secyear = 3.154e+7
         self.tWave = None
-        self.tSed = None
         self.CKomar = CKomar
         self.sigma = sigma
         self.gravity = 9.81
         self.porosity = None
         self.dh = None
         self.d50 = None
+        self.diffH = None
         self.efficiency = None
         self.Urms = None
         self.sl = None
@@ -91,20 +92,10 @@ class hydrodynamic:
             ny = int(len(yv)/self.Wfac)
             self.swanY = numpy.linspace(yv.min(), yv.max(), num=ny)
 
-        # self.ring = LinearRing([(-res, -res),(0,-res),(res,-res), (res,0),(res, res),(0, res),(-res,res),(-res,0)])
-        # self.pairs = list(self._setpairs(list(self.ring.coords)))
-
         self.idI = None
         self.idJ = None
 
         return
-
-    # def _setpairs(self, lst):
-    #
-    #      for i in range(1, len(lst)):
-    #          yield lst[i-1], lst[i]
-    #
-    #      return
 
     def _interpolate_to_wavegrid(self, elev):
          """
@@ -169,13 +160,21 @@ class hydrodynamic:
 
          # Define variables for sediment transport
          self.d50 = input.faciesDiam
+         self.diffH = input.diffH
          self.rho_sed = input.density
          self.rho_water = input.waterD
          self.porosity = input.porosity
          self.diffusion = input.diffusion
          self.efficiency = input.efficiency
 
-         self.tSed = input.tSed
+         diffCFL = 0.25*self.res**2/(2*self.diffusion.max())
+         self.tDiff = input.tDiff
+         if self.tDiff > diffCFL:
+             self.tDiff = diffCFL
+             input.tDiff = diffCFL
+             print 'The diffusion time step has been changed to ensure CFL condition.'
+             print 'tDiff is now set to: ',input.tDiff,' years.'
+
          self.tWave = input.tWave
          self.relativeDens = self.rho_sed/self.rho_water
          self.Dstar = self.d50*(self.gravity*(self.relativeDens-1.)/self.kinematic_viscosity**2)**(1./3.)
@@ -193,6 +192,9 @@ class hydrodynamic:
 
          self.idI = numpy.tile(numpy.arange(z.shape[0]),(z.shape[1],1)).T
          self.idJ = numpy.tile(numpy.arange(z.shape[1]),(z.shape[0],1))
+
+         # Define diffusion parameters
+         diffu.diffuse.init(self.diffH,self.porosity,self.diffusion,self.res,self.tDiff)
 
          return
 
@@ -354,6 +356,51 @@ class hydrodynamic:
 
          return wID
 
+    def multidiff(self, input, strata, elev, lID):
+         """
+         This function computes the multi-lithology diffusion.
+
+         Parameters
+         ----------
+
+         variable : input
+            Simulation input parameters time step.
+
+         variable: strata
+            Stratigraphic data.
+
+         variable: z
+            Elevation.
+
+         variable: lID
+            Stratigraphic layer ID.
+         """
+
+         # Get top layer sediment thicknesses
+         self._get_layer(self.diffH, strata, lID, input.faciesNb)
+
+         # Update borders
+         self.actlay[0,:,:] = self.actlay[1,:,:]
+         self.actlay[-1,:,:] = self.actlay[-2,:,:]
+         self.actlay[:,0,:] = self.actlay[:,1,:]
+         self.actlay[:,-1,:] = self.actlay[:,-2,:]
+
+         # Get fraction
+         pySed = self.actlay/self.diffH
+
+         # Run diffusion model
+         #outZ, outSed = diffu.diffuse.run(pySed,elev)
+
+         # Update stratal top layer
+        #  for sed in range(input.faciesNb):
+        #      self.actlay[:,:,sed] += depo[:,:,sed]
+        #      z += depo[:,:,sed]
+        #      strata.stratTH[:,:,lID] += self.actlay[self.i1:self.i2,1:-1,sed]
+        #      strata.sedTH[:,:,lID,sed] += self.actlay[self.i1:self.i2,1:-1,sed]
+        #  self.dh.append(z-oldz)
+
+         return
+
     def _assignBCs(self, z):
         """
         Pads the boundaries of a grid. Boundary condition pads the boundaries
@@ -477,107 +524,7 @@ class hydrodynamic:
          data[:,0] = 0
          data[:,-1] = 0
 
-    # def _sediment_distribution(self, transD):
-    #      """
-    #      Define intersection points based on transport direction and specify for each nodes
-    #      the proportion of sediment which moves to its neighborhood
-    #
-    #      Parameters
-    #      ----------
-    #
-    #      variable: transD
-    #         Transport direction.
-    #      """
-    #
-    #      trans = transD[self.i1:self.i2,:]
-    #
-    #      lptI0 = numpy.zeros(transD.shape,dtype=int)
-    #      lptI0.fill(-100)
-    #      lptI1 = numpy.zeros(transD.shape,dtype=int)
-    #      lptI1.fill(-100)
-    #      lptJ0 = numpy.zeros(transD.shape,dtype=int)
-    #      lptJ0.fill(-100)
-    #      lptJ1 = numpy.zeros(transD.shape,dtype=int)
-    #      lptJ1.fill(-100)
-    #      lprop0 = numpy.zeros(transD.shape)
-    #      lprop0.fill(-100.)
-    #      lprop1 = numpy.zeros(transD.shape)
-    #      lprop1.fill(-100.)
-    #
-    #      listPts = [[(0,0),(self.res*2.*numpy.cos(trans[x,y]),self.res*2.*numpy.sin(trans[x,y]))]
-    #                 for x in range(trans.shape[0]) for y in range(trans.shape[1])]
-    #      ls = [LineString(lP) for lP in listPts]
-    #      pts = [l.intersection(self.ring) for l in ls]
-    #      xy = numpy.asarray([p.coords[0] for p in pts])
-    #
-    #      ptI0 = numpy.zeros(len(pts),dtype=int)
-    #      ptI1 = numpy.zeros(len(pts),dtype=int)
-    #      ptJ0 = numpy.zeros(len(pts),dtype=int)
-    #      ptJ1 = numpy.zeros(len(pts),dtype=int)
-    #      prop0 = numpy.zeros(len(pts))
-    #      prop1 = numpy.zeros(len(pts))
-    #
-    #      for p in range(len(pts)):
-    #         for pair in self.pairs:
-    #             if LineString([pair[0],pair[1]]).contains(pts[p]):
-    #                 x0,y0 = LineString([pair[0],pair[1]]).coords[0]
-    #                 x1,y1 = LineString([pair[0],pair[1]]).coords[1]
-    #                 ptI0[p],ptJ0[p] = int(x0/self.res),int(y0/self.res)
-    #                 ptI1[p],ptJ1[p] = int(x1/self.res),int(y1/self.res)
-    #                 dist0 = numpy.sqrt((x0-xy[p,0])**2+(y0-xy[p,1])**2)
-    #                 dist1 = numpy.sqrt((x1-xy[p,0])**2+(y1-xy[p,1])**2)
-    #                 p0 = dist0/(dist0+dist1)
-    #                 if p0 > 1:
-    #                     p0 = 1.
-    #                 p1 = 1-p0
-    #                 prop0[p] = p1
-    #                 prop1[p] = p0
-    #                 break
-    #
-    #      lptI0[self.i1:self.i2,:] =  ptI0.reshape(trans.shape)
-    #      lptI1[self.i1:self.i2,:] =  ptI1.reshape(trans.shape)
-    #      lptJ0[self.i1:self.i2,:] =  ptJ0.reshape(trans.shape)
-    #      lptJ1[self.i1:self.i2,:] =  ptJ1.reshape(trans.shape)
-    #      lprop0[self.i1:self.i2,:] =  prop0.reshape(trans.shape)
-    #      lprop1[self.i1:self.i2,:] =  prop1.reshape(trans.shape)
-    #
-    #      self.ptI0 = lptI0.flatten()
-    #      self.comm.Allreduce(mpi.IN_PLACE, self.ptI0, op=mpi.MAX)
-    #      self.ptI0 = self.ptI0.reshape(transD.shape)
-    #      self._zeros_border_ids(self.ptI0)
-    #      self.ptI0 += self.idI
-    #
-    #      self.ptI1 = lptI1.flatten()
-    #      self.comm.Allreduce(mpi.IN_PLACE, self.ptI1, op=mpi.MAX)
-    #      self.ptI1 = self.ptI1.reshape(transD.shape)
-    #      self._zeros_border_ids(self.ptI1)
-    #      self.ptI1 += self.idI
-    #
-    #      self.ptJ0 = lptJ0.flatten()
-    #      self.comm.Allreduce(mpi.IN_PLACE, self.ptJ0, op=mpi.MAX)
-    #      self.ptJ0 = self.ptJ0.reshape(transD.shape)
-    #      self._zeros_border_ids(self.ptJ0)
-    #      self.ptJ0 += self.idJ
-    #
-    #      self.ptJ1 = lptJ1.flatten()
-    #      self.comm.Allreduce(mpi.IN_PLACE, self.ptJ1, op=mpi.MAX)
-    #      self.ptJ1 = self.ptJ1.reshape(transD.shape)
-    #      self._zeros_border_ids(self.ptJ1)
-    #      self.ptJ1 += self.idJ
-    #
-    #      self.prop0 = lprop0.flatten()
-    #      self.comm.Allreduce(mpi.IN_PLACE, self.prop0, op=mpi.MAX)
-    #      self.prop0 = self.prop0.reshape(transD.shape)
-    #      self._zeros_border_ids(self.prop0)
-    #
-    #      self.prop1 = lprop1.flatten()
-    #      self.comm.Allreduce(mpi.IN_PLACE, self.prop1, op=mpi.MAX)
-    #      self.prop1 = self.prop1.reshape(transD.shape)
-    #      self._zeros_border_ids(self.prop1)
-    #
-    #      return
-
-    def _sediment_distribution_quick(self, transD):
+    def _sediment_distribution(self, transD):
          """
          Define intersection points based on transport direction and specify for each nodes
          the proportion of sediment which moves to its neighborhood
@@ -801,8 +748,7 @@ class hydrodynamic:
          transD[r,c] = numpy.arctan2(force.wavV[clim][r,c],force.wavU[clim][r,c])
 
          # Define sediment distribution based on transport direction
-         #self._sediment_distribution(transD)
-         self._sediment_distribution_quick(transD)
+         self._sediment_distribution(transD)
 
          if self.rank == 0:
             print '     +   Transport streamlines took %0.02f seconds to run.' %(time.clock()-tw)

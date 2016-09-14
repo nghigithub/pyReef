@@ -44,13 +44,14 @@ class xmlParser:
 
         self.tStart = None
         self.tEnd = None
-        self.dt = None
+        self.tCarb = None
         self.tWave = None
-        self.tSed = None
+        self.tDiff = None
         self.tDisplay = None
         self.laytime = None
 
         self.faciesNb = None
+        self.diffH = None
         self.waterD = None
         self.density = None
         self.porosity = None
@@ -179,11 +180,11 @@ class xmlParser:
             if self.tStart > self.tEnd:
                 raise ValueError('Error in the definition of the simulation time: start time is greater than end time!')
             element = None
-            element = time.find('dt')
+            element = time.find('tcarb')
             if element is not None:
-                self.dt = float(element.text)
+                self.tCarb = float(element.text)
             else:
-                raise ValueError('Error in the definition of the simulation time: simulation time step is required')
+                raise ValueError('Error in the definition of the simulation time: simulation time step for carbonate module is required')
             element = None
             element = time.find('twave')
             if element is not None:
@@ -191,11 +192,11 @@ class xmlParser:
             else:
                 raise ValueError('Error in the definition of the simulation time: wave interval is required')
             element = None
-            element = time.find('tsed')
+            element = time.find('tdiff')
             if element is not None:
-                self.tSed = float(element.text)*60.
+                self.tDiff = float(element.text)
             else:
-                self.tSed = 3600.
+                raise ValueError('Error in the definition of the simulation time: diffusion interval is required')
             if Decimal(self.tEnd - self.tStart) % Decimal(self.tWave) != 0.:
                 raise ValueError('Error in the definition of the simulation time: wave interval needs to be a multiple of simulation time.')
             element = None
@@ -220,7 +221,7 @@ class xmlParser:
                 raise ValueError('Error in the XmL file: stratal layer interval needs to be an exact multiple of the display interval!')
             if Decimal(self.tDisplay) % Decimal(self.tWave) != 0.:
                 raise ValueError('Error in the XmL file: wave time interval needs to be an exact multiple of the display interval!')
-            if Decimal(self.tDisplay) % Decimal(self.dt) != 0.:
+            if Decimal(self.tDisplay) % Decimal(self.tCarb) != 0.:
                 raise ValueError('Error in the XmL file: time step interval needs to be an exact multiple of the display interval!')
             if Decimal(self.tEnd-self.tStart) % Decimal(self.tDisplay) != 0.:
                 raise ValueError('Error in the XmL file: display interval needs to be an exact multiple of the simulation time interval!')
@@ -243,6 +244,12 @@ class xmlParser:
                 self.waterD = float(element.text)
             else:
                 self.waterD = 1010.0
+            element = None
+            element = litho.find('diffH')
+            if element is not None:
+                self.diffH = float(element.text)
+            else:
+                self.diffH = 1.
             self.faciesName = numpy.empty(self.faciesNb, dtype="S10")
             self.density = numpy.zeros(self.faciesNb, dtype=float)
             self.porosity = numpy.zeros(self.faciesNb, dtype=float)

@@ -3,6 +3,9 @@ TOP=$(shell pwd)
 # Files name
 SWAN=simswan
 
+# Files name
+DIFF=diffusion
+
 BUILDDIR=$(TOP)/WaveComp/build
 OBJDIR=$(BUILDDIR)/objects
 MODDIR=$(BUILDDIR)/modules
@@ -32,7 +35,7 @@ all: dist
 dist:
 	@echo
 	@echo "*************************************************"
-	@echo "Ocean Plugin Makefile"
+	@echo "Plugin Makefile"
 	@echo "*************************************************"
 	@echo
 	for i in $(DIRMODS) ; do   \
@@ -40,16 +43,21 @@ dist:
 	done
 	@echo "*************************************************"
 	@echo
-	@echo "Build Swan binary."
+	@echo "Build Swan & Diffusion libraries."
 	@echo
 	@echo "*************************************************"
 	@$(if $(wildcard SimSwan.so),rm -f *.so,)
 	make libs
 
-libs :	${SWAN}.so
+libs :	${SWAN}.so ${DIFF}.so
 
 ${SWAN}.so: ${SWAN}.f90
-	${F2PY} ${F2PY_FLAGS} $(LDFLAGS) -lWaveParam -c -m ${SWAN} $< 
+	${F2PY} ${F2PY_FLAGS} $(LDFLAGS) -lWaveParam -c -m ${SWAN} $<
+
+
+${DIFF}.so: ${DIFF}.f90
+	${F2PY} ${F2PY_FLAGS} $(LDFLAGS) -c -m ${DIFF} $<
+
 
 %.o : %.f90
 	$(F90) $(FFLAGS) -c $< -o $@
