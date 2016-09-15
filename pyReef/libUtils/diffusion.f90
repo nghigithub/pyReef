@@ -80,14 +80,14 @@ contains
       enddo
 
       ! Ghost cells
-      outZ(1,1)=2.*outZ(2,2)-outZ(3,3)
-      outZ(1,pyNy)=2.*outZ(2,pyNy-1)-outZ(3,pyNy-2)
-      outZ(pyNx,1)=2.*outZ(pyNx-1,2)-outZ(pyNx-2,3)
-      outZ(pyNx,pyNy)=2.*outZ(pyNx-1,pyNy-1)-outZ(pyNx-2,pyNy-2)
-      outZ(1,2:pyNy-1)=2.*outZ(2,2:pyNy-1)-outZ(3,2:pyNy-1)
-      outZ(pyNx,2:pyNy-1)=2.*outZ(pyNx-1,2:pyNy-1)-outZ(pyNx-2,2:pyNy-1)
-      outZ(2:pyNx-1,1)=2.*outZ(2:pyNx-1,2)-outZ(2:pyNx-1,3)
-      outZ(2:pyNx-1,pyNy)=2.*outZ(2:pyNx-1,pyNy-1)-outZ(2:pyNx-1,pyNy-2)
+      outZ(1,1)=pyElev(1,1)
+      outZ(1,pyNy)=pyElev(1,pyNy)
+      outZ(pyNx,1)=pyElev(pyNx,1)
+      outZ(pyNx,pyNy)=pyElev(pyNx,pyNy)
+      outZ(1,2:pyNy-1)=pyElev(1,2:pyNy-1)
+      outZ(pyNx,2:pyNy-1)=pyElev(pyNx,2:pyNy-1)
+      outZ(2:pyNx-1,1)=pyElev(2:pyNx-1,1)
+      outZ(2:pyNx-1,pyNy)=pyElev(2:pyNx-1,pyNy)
 
       ! Solve sediment proportion equation
       tmpLitho=0.
@@ -114,6 +114,7 @@ contains
       enddo
 
       ! Get all lithology proportions
+      outSed = 0.
       do j=2,pyNy-1
         do i=2,pyNx-1
           sum=0.
@@ -131,18 +132,6 @@ contains
             outSed(i,j,lithNb)=1.-sum
           endif
         enddo
-      enddo
-
-      ! Last we update the proportion for the ghost cells
-      do k=1,lithNb
-        outSed(1,1,k)=outSed(2,2,k)
-        outSed(1,pyNy,k)=outSed(2,pyNy-1,k)
-        outSed(pyNx,1,k)=outSed(pyNx-1,2,k)
-        outSed(pyNx,pyNy,k)=outSed(pyNx-1,pyNy-1,k)
-        outSed(1,2:pyNy-1,k)=outSed(2,2:pyNy-1,k)
-        outSed(pyNx,2:pyNy-1,k)=outSed(pyNx-1,2:pyNy-1,k)
-        outSed(2:pyNx-1,1,k)=outSed(2:pyNx-1,2,k)
-        outSed(2:pyNx-1,pyNy,k)=outSed(2:pyNx-1,pyNy-1,k)
       enddo
 
     end subroutine run

@@ -47,6 +47,7 @@ class hydrodynamic:
         self.gravity = 9.81
         self.porosity = None
         self.dh = None
+        self.diffdh = None
         self.d50 = None
         self.diffH = None
         self.efficiency = None
@@ -369,7 +370,7 @@ class hydrodynamic:
          variable: strata
             Stratigraphic data.
 
-         variable: z
+         variable: elev
             Elevation.
 
          variable: lID
@@ -389,15 +390,68 @@ class hydrodynamic:
          pySed = self.actlay/self.diffH
 
          # Run diffusion model
-         #outZ, outSed = diffu.diffuse.run(pySed,elev)
+         outZ, outSed = diffu.diffuse.run(pySed,elev)
+         self.diffdh = outZ-elev
+         tmpH = self.diffdh+self.diffH
 
-         # Update stratal top layer
+         newSedH = numpy.zeros((elev.shape[0],elev.shape[1],input.faciesNb))
+         for s in range(input.faciesNb):
+             newSedH[:,:,s] =  tmpH*outSed[:,:,s]
+
+         # Update stratal layers
         #  for sed in range(input.faciesNb):
-        #      self.actlay[:,:,sed] += depo[:,:,sed]
-        #      z += depo[:,:,sed]
-        #      strata.stratTH[:,:,lID] += self.actlay[self.i1:self.i2,1:-1,sed]
-        #      strata.sedTH[:,:,lID,sed] += self.actlay[self.i1:self.i2,1:-1,sed]
+        #       self.actlay[:,:,sed] += depo[:,:,sed]
+        #       elev += self.diffdh
+        #       strata.stratTH[:,:,lID]
+        #       strata.stratTH[:,:,lID] += self.actlay[self.i1:self.i2,1:-1,sed]
+        #       strata.sedTH[:,:,lID,sed] += self.actlay[self.i1:self.i2,1:-1,sed]
         #  self.dh.append(z-oldz)
+
+         return
+
+    def _change_layer(self, elev, strata, lID, sedNb):
+         """
+         This function modify the stratal layer based on diffusion.
+
+         Parameters
+         ----------
+
+         variable : elev
+            Updated elevation.
+
+         variable: strata
+            Stratigraphic data.
+
+         variable: lID
+            Stratigraphic layer ID.
+
+         variable: sedNb
+            Number of facies.
+
+         """
+
+         for i in range(self.i1,self.i2):
+            for j in range(1,shape[1]-1):
+                updateH = self.diffdh
+                for l in range(lID,-1,-1):
+                    th = strata.stratTH[i-self.i1,j-1,l]
+                    if th > 0:
+                        perc = strata.sedTH[i-self.i1,j-1,l,:]/th
+                        if th >= updateH:
+                            self.actlay[i,j,0:sedNb] += updateH*perc[0:sedNb]
+                            strata.stratTH[i-self.i1,j-1,l] -= updateH
+                            strata.sedTH[i-self.i1,j-1,l,0:sedNb] -= updateH*perc[0:sedNb]
+                            updateH = 0.
+                        else:
+                            self.actlay[i,j,:] += th*perc
+                            strata.stratTH[i-self.i1,j-1,l] = 0.
+                            strata.sedTH[i-self.i1,j-1,l,:] = 0.
+                            updateH -= th
+                    if updateH <= 0:
+                        break
+         tmp = self.actlay.reshape(shape[0]*shape[1]*sedNb)
+         self.comm.Allreduce(mpi.IN_PLACE, tmp, op=mpi.MAX)
+         self.actlay = tmp.reshape(shape[0],shape[1],sedNb)
 
          return
 
