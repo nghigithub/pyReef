@@ -47,7 +47,6 @@ class hydrodynamic:
         self.gravity = 9.81
         self.porosity = None
         self.dh = None
-        self.diffdh = None
         self.d50 = None
         self.diffH = None
         self.efficiency = None
@@ -377,6 +376,8 @@ class hydrodynamic:
             Stratigraphic layer ID.
          """
 
+         td = time.clock()
+
          # Get top layer sediment thicknesses
          self._get_layer(self.diffH, strata, lID, input.faciesNb)
 
@@ -391,21 +392,18 @@ class hydrodynamic:
 
          # Run diffusion model
          outZ, outSed = diffu.diffuse.run(pySed,elev)
-         self.diffdh = outZ-elev
-         tmpH = self.diffdh+self.diffH
-
-         newSedH = numpy.zeros((elev.shape[0],elev.shape[1],input.faciesNb))
-         for s in range(input.faciesNb):
-             newSedH[:,:,s] =  tmpH*outSed[:,:,s]
 
          # Update stratal layers
-        #  for sed in range(input.faciesNb):
-        #       self.actlay[:,:,sed] += depo[:,:,sed]
-        #       elev += self.diffdh
-        #       strata.stratTH[:,:,lID]
-        #       strata.stratTH[:,:,lID] += self.actlay[self.i1:self.i2,1:-1,sed]
-        #       strata.sedTH[:,:,lID,sed] += self.actlay[self.i1:self.i2,1:-1,sed]
-        #  self.dh.append(z-oldz)
+         tmpH = outZ-elev+self.diffH
+         tmpH[tmpH<0] = 0.
+         for sed in range(input.faciesNb):
+             tmp = tmpH*outSed[:,:,sed]
+             strata.stratTH[:,:,lID] += tmp[self.i1:self.i2,1:-1]
+             strata.sedTH[:,:,lID,sed] += tmp[self.i1:self.i2,1:-1]
+         elev = outZ
+
+         if self.rank == 0:
+             print '   -   Multi-lithology diffusion transport took %0.02f seconds to run.' %(time.clock()-td)
 
          return
 
@@ -721,6 +719,7 @@ class hydrodynamic:
                             updateH -= th
                     if updateH <= 0:
                         break
+
          tmp = self.actlay.reshape(shape[0]*shape[1]*sedNb)
          self.comm.Allreduce(mpi.IN_PLACE, tmp, op=mpi.MAX)
          self.actlay = tmp.reshape(shape[0],shape[1],sedNb)
