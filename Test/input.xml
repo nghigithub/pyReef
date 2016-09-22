@@ -32,86 +32,301 @@
 		<laytime>1</laytime>
 	</time>
 
-	<!-- Lithofacies structure -->
-	<lithofacies>
-		<!-- Number of lithofacies -->
-		<faciesNb>2</faciesNb>
+	<!-- Membership functions structure:
+ 					Specify carbonate habitats fuzzy logic functions based on main controlling forces.
+					These functions are defined as csv files produced using the IPython notebooks from
+					the fuzzyRules folder. -->
+	<membershipFunction>
+		<!-- Depth control on carbonate evolution. -->
+		<depthControl>
+			<mbfNb>3</mbfNb>
+			<!-- Membership functions definition -->
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>shallow</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_shallow_depth.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>medium</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_medium_depth.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>deep</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_deep_depth.csv</file>
+			</mbf>
+		</depthControl>
+		<!-- Wave control on carbonate evolution. -->
+		<waveControl>
+			<mbfNb>4</mbfNb>
+			<!-- Membership functions definition -->
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>lowWave</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_low_wave.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>medWave</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_med_wave.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>highWave</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_high_wave.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>extremeWave</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_extreme_wave.csv</file>
+			</mbf>
+		</waveControl>
+		<!-- Sedimentation control on carbonate evolution. -->
+		<sedControl>
+			<mbfNb>3</mbfNb>
+			<!-- Membership functions definition -->
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>lowSed</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_low_sed.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>medSed</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_medium_sed.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>highSed</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_high_sed.csv</file>
+			</mbf>
+		</sedControl>
+		<!-- Production control on carbonate evolution. -->
+		<prodControl>
+			<mbfNb>4</mbfNb>
+			<!-- Membership functions definition -->
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>lowProd</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_low_prod.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>medProd</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_med_prod.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>highProd</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_high_prod.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>higherProd</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_higher_prod.csv</file>
+			</mbf>
+		</prodControl>
+		<!-- Disintegration control on carbonate evolution. -->
+		<disControl>
+			<mbfNb>3</mbfNb>
+			<!-- Membership functions definition -->
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>lowDis</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_low_dis.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>medDis</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_med_dis.csv</file>
+			</mbf>
+			<mbf>
+				<!-- Name used in fuzzy rule needs to be lower than 10 characters -->
+				<name>highDis</name>
+				<!-- File name containing the membership function -->
+				<file>data/mbf_high_dis.csv</file>
+			</mbf>
+		</disControl>
+	</membershipFunction>
+
+	<!-- Habitats structure -->
+	<habitats>
+		<!-- Number of habitats -->
+		<habitatNb>2</habitatNb>
 		<!-- Sea water density [kg/m3] -->
 		<waterD>1010</waterD>
 		<!-- Diffusion layer thickness [m] -->
 		<diffH>1.</diffH>
-		<!-- Facies definition -->
-		<facies>
-			<!-- Facies name needs to be lower than 10 characters -->
-			<name>coralgal</name>
-			<!-- Averaged diameter of facies type [mm] -->
+		<!-- Habitats definition -->
+		<habitat>
+			<!-- Habitat name needs to be lower than 10 characters -->
+			<name>rudist</name>
+			<!-- Averaged diameter of disintegrate habitat [mm] -->
 			<diam>0.1</diam>
 			<!-- Sediment density [kg/m3] -->
 			<sedD>2650</sedD>
 			<!-- Porosity [kg/m3] -->
 			<porosity>0.4</porosity>
-			<!-- Transport efficiency specifies the percentage
-             of suspended versus bedload transport: 0 is for
+			<!-- Transport efficiency for disintegrated material which specifies
+             the percentage of suspended versus bedload transport: 0 is for
              purely bedload and 1 for suspended only transport -->
 			<efficiency>0.8</efficiency>
-			<!-- Diffusion coefficient [m2/yr] -->
+			<!-- Diffusion coefficient for disintegrated habitat [m2/yr] -->
 			<diffusion>0.1</diffusion>
-		</facies>
-		<facies>
-			<!-- Facies name -->
-			<name>sand</name>
-			<!-- Averaged diameter of facies type [mm] -->
+		</habitat>
+		<habitat>
+			<!-- Habitat name needs to be lower than 10 characters -->
+			<name>coral</name>
+			<!-- Averaged diameter of disintegrate habitat [mm] -->
 			<diam>1.</diam>
 			<!-- Sediment density [kg/m3] -->
 			<sedD>2650</sedD>
 			<!-- Porosity [kg/m3] -->
 			<porosity>0.4</porosity>
-			<!-- Transport efficiency specifies the percentage
-             of suspended versus bedload transport: 0 is for
+			<!-- Transport efficiency for disintegrated material which specifies
+             the percentage of suspended versus bedload transport: 0 is for
              purely bedload and 1 for suspended only transport -->
 			<efficiency>0.2</efficiency>
-			<!-- Diffusion coefficient [m2/yr] -->
+			<!-- Diffusion coefficient for disintegrated habitat [m2/yr] -->
 			<diffusion>0.01</diffusion>
-		</facies>
-	</lithofacies>
+		</habitat>
+	</habitats>
+
+	<!-- Fuzzy logic rules structure -->
+	<fuzzyRule>
+		<!-- Each rule defines a specific habitat behavior (production/disintegration)
+	 			 associated to one or several external forcing conditions (depth, wave,
+				 sedimentation) -->
+		<rule>
+			<!-- Considering the following rule:
+						Rudist production is high in environments with shallow depth AND medium
+							wave energy AND low sedimentation.
+					  The rule is defined in the XML file using the following structure. -->
+			<!-- Type of habitat the rule is defined for. The habitat name is defined in
+					 the previous structure <habitats>. -->
+			<habitat>rudist</habitat>
+			<!-- Influence of depth membership function. The function name is defined in
+		 			 the membership function structure <membershipFunction>. -->
+			<depthControl>shallow</depthControl>
+			<!-- Operator used to connect the membership function together. Choice is either AND or
+					 OR.-->
+			<operator>and</operator>
+			<!-- Influence of wave membership function. The function name is defined in
+		 			 the membership function structure <membershipFunction>. -->
+			<waveControl>medWave</waveControl>
+			<!-- Operator used to connect the membership function together. Choice is either AND or
+					 OR.-->
+			<operator>and</operator>
+			<!-- Influence of sedimentation membership function. The function name is defined in
+		 			 the membership function structure <membershipFunction>. -->
+			<sedControl>lowSed</sedControl>
+			<!-- Define the membership function associated to either production or
+					 disintegration of the considered habitat. The function name is defined in
+		 		 	 the membership function structure <membershipFunction>. -->
+			<prodControl>highProd</prodControl>
+		</rule>
+		<rule>
+			<!-- Considering the following rule:
+						Rudist production is medium in environments with medium depth AND high
+							wave energy.
+					  The rule is defined in the XML file using the following structure. -->
+			<!-- Type of habitat the rule is defined for. The habitat name is defined in
+					 the previous structure <habitats>. -->
+			<habitat>rudist</habitat>
+			<!-- Influence of depth membership function. The function name is defined in
+		 			 the membership function structure <membershipFunction>. -->
+			<depthControl>medium</depthControl>
+			<!-- Operator used to connect the membership function together. Choice is either AND or
+					 OR.-->
+			<operator>and</operator>
+			<!-- Influence of wave membership function. The function name is defined in
+		 			 the membership function structure <membershipFunction>. -->
+			<waveControl>highWave</waveControl>
+			<!-- Define the membership function associated to either production or
+					 disintegration of the considered habitat. The function name is defined in
+		 		 	 the membership function structure <membershipFunction>. -->
+			<prodControl>medProd</prodControl>
+		</rule>
+		<rule>
+			<!-- Considering the following rule:
+						Rudist disintegration is high in deep environments OR high
+							sedimentation.
+					  The rule is defined in the XML file using the following structure. -->
+			<!-- Type of habitat the rule is defined for. The habitat name is defined in
+					 the previous structure <habitats>. -->
+			<habitat>rudist</habitat>
+			<!-- Influence of depth membership function. The function name is defined in
+		 			 the membership function structure <membershipFunction>. -->
+			<depthControl>deep</depthControl>
+			<!-- Operator used to connect the membership function together. Choice is either AND or
+					 OR.-->
+			<operator>or</operator>
+			<!-- Influence of sedimentation membership function. The function name is defined in
+		 			 the membership function structure <membershipFunction>. -->
+			<sedControl>highSed</sedControl>
+			<!-- Define the membership function associated to either production or
+					 disintegration of the considered habitat. The function name is defined in
+		 		 	 the membership function structure <membershipFunction>. -->
+			<prodControl>highDis</prodControl>
+		</rule>
+	</fuzzyRule>
 
 	<!-- Basement structure:
-	         Specify initial stratigraphic layers. -->
+	      	Specify initial stratigraphic layers. -->
 	<basement>
 		<!-- Number of stratigraphic layers. -->
 		<stratlayers>1</stratlayers>
 		<!-- The layering is defined from top to bottom, with:
-	            - either a constant percentage value for each lithofacies or with a lithofacies map
+	            - either a constant percentage value for each habitat or with a habitat map
 	            - either a constant thickness for the entire layer or with a thickness map -->
-		<!-- Constant facies percentage and layer thickness -->
+		<!-- Constant habitat percentage and layer thickness -->
 		<layer>
 			<!-- Uniform percentage value for the considered layer, the percentage is defined for each
-									 facies in the same order as defined in the lithofacies structure. -->
-			<facPerc>0.2,0.8</facPerc>
+							habitat in the same order as defined in the habitats structure. You will need
+							define the values for the hard and disintegrated part of any habitat -->
+			<facPerc>0.2,0.0,0.8,0.0</facPerc>
 			<!-- Uniform thickness value for the considered layer [m]. -->
 			<thcst>100.</thcst>
 		</layer>
 
 		<?ignore
-		<!-- Constant lithofacies distribution and variable layer thickness map -->
+		<!-- Constant habitat distribution and variable layer thickness map -->
 		<layer>
 			<!-- Uniform percentage value for the considered layer, the percentage is defined for each
-					 facies in the same order as defined in the lithofacies structure.-->
-			<facPerc>0.5,0.5</facPerc>
+							habitat in the same order as defined in the habitats structure. You will need
+							define the values for the hard and disintegrated part of any habitat -->
+			<facPerc>0.2,0.0,0.8,0.0</facPerc>
 			<!-- Variable thicknesses for the considered layer [m]. -->
 			<thmap>data/thlay2.csv</thmap>
 		</layer>
-		<!-- Variable lithofacies distribution and constant layer thickness -->
+		<!-- Variable habitat distribution and constant layer thickness -->
 		<layer>
-			<!-- Variable lithofacies distribution
+			<!-- Variable habitat distribution
 		for the considered layer. -->
 			<facmap>data/litho3.csv</facmap>
 			<!-- Uniform thickness value for the considered layer [m]. -->
 			<thcst>30</thcst>
 		</layer>
-		<!-- Variable lithofacies distribution and thicknesses -->
+		<!-- Variable habitat distribution and thicknesses -->
 		<layer>
-			<!-- Variable lithofacies
+			<!-- Variable habitat
 		distribution for the considered layer. -->
 			<facmap>data/litho4.csv</facmap>
 			<!-- Variable thicknesses for the considered layer [m]. -->
