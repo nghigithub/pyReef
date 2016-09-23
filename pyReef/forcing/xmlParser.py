@@ -50,6 +50,22 @@ class xmlParser:
         self.tDisplay = None
         self.laytime = None
 
+        self.mbfDepthNb = 0
+        self.mbfDepthName = None
+        self.mbfDepthFile = None
+        self.mbfWaveNb = 0
+        self.mbfWaveName = None
+        self.mbfWaveFile = None
+        self.mbfSedNb = 0
+        self.mbfSedName = None
+        self.mbfSedFile = None
+        self.mbfProdNb = 0
+        self.mbfProdName = None
+        self.mbfProdFile = None
+        self.mbfDisNb = 0
+        self.mbfDisName = None
+        self.mbfDisFile = None
+
         self.faciesNb = None
         self.diffH = None
         self.waterD = None
@@ -59,6 +75,14 @@ class xmlParser:
         self.diffusion = None
         self.faciesName = None
         self.faciesDiam = None
+
+        self.fuzzNb = 0
+        self.fuzzHabitat = None
+        self.fuzzDepth = None
+        self.fuzzWave = None
+        self.fuzzSed = None
+        self.fuzzProd = None
+        self.fuzzDis = None
 
         self.stratlays = None
         self.stratMap = None
@@ -228,16 +252,185 @@ class xmlParser:
         else:
             raise ValueError('Error in the XmL file: time structure definition is required!')
 
-        # Extract lithofacies structure information
+        # Extract membership functions
+        mbf = None
+        mbf = root.find('membershipFunction')
+        if mbf is not None:
+            depth = None
+            depth = mbf.find('depthControl')
+            if depth is not None:
+                element = None
+                element = depth.find('mbfNb')
+                if element is not None:
+                    self.mbfDepthNb = int(element.text)
+                else:
+                    raise ValueError('Error in the definition of the depthControl: number of membership function is required')
+                self.mbfDepthName = numpy.empty(self.mbfDepthNb, dtype="S10")
+                self.mbfDepthFile = numpy.empty(self.mbfDepthNb, dtype=object)
+                id = 0
+                for defE in depth.iter('mbf'):
+                    if id >= self.mbfDepthNb:
+                        raise ValueError('The number of depthControl membership functions does not match the number of defined ones.')
+                    element = None
+                    element = defE.find('name')
+                    if element is not None:
+                        self.mbfDepthName[id] = element.text
+                    else:
+                        raise ValueError('Membership function name %d is missing in the depthControl structure.'%id)
+                    element = None
+                    element = defE.find('file')
+                    if element is not None:
+                        self.mbfDepthFile[id] = element.text
+                        if not os.path.isfile(element.text):
+                            raise ValueError('Membership function file is missing or the given path is incorrect %s.'%element.text)
+                    else:
+                        raise ValueError('Membership function file %d is missing in the depthControl structure.'%id)
+                    id += 1
+                if id < self.mbfDepthNb-1:
+                    raise ValueError('Number of membership functions declared for depthControl is not matching with the mbfNb value.')
+            wave = None
+            wave = mbf.find('waveControl')
+            if wave is not None:
+                element = None
+                element = wave.find('mbfNb')
+                if element is not None:
+                    self.mbfWaveNb = int(element.text)
+                else:
+                    raise ValueError('Error in the definition of the waveControl: number of membership function is required')
+                self.mbfWaveName = numpy.empty(self.mbfWaveNb, dtype="S10")
+                self.mbfWaveFile = numpy.empty(self.mbfWaveNb, dtype=object)
+                id = 0
+                for defW in wave.iter('mbf'):
+                    if id >= self.mbfWaveNb:
+                        raise ValueError('The number of waveControl membership functions does not match the number of defined ones.')
+                    element = None
+                    element = defW.find('name')
+                    if element is not None:
+                        self.mbfWaveName[id] = element.text
+                    else:
+                        raise ValueError('Membership function name %d is missing in the waveControl structure.'%id)
+                    element = None
+                    element = defW.find('file')
+                    if element is not None:
+                        self.mbfWaveFile[id] = element.text
+                        if not os.path.isfile(element.text):
+                            raise ValueError('Membership function file is missing or the given path is incorrect %s.'%element.text)
+                    else:
+                        raise ValueError('Membership function file %d is missing in the waveControl structure.'%id)
+                    id += 1
+                if id < self.mbfWaveNb-1:
+                    raise ValueError('Number of membership functions declared for waveControl is not matching with the mbfNb value.')
+            sed = None
+            sed = mbf.find('sedControl')
+            if sed is not None:
+                element = None
+                element = sed.find('mbfNb')
+                if element is not None:
+                    self.mbfSedNb = int(element.text)
+                else:
+                    raise ValueError('Error in the definition of the sedControl: number of membership function is required')
+                self.mbfSedName = numpy.empty(self.mbfSedNb, dtype="S10")
+                self.mbfSedFile = numpy.empty(self.mbfSedNb, dtype=object)
+                id = 0
+                for defS in sed.iter('mbf'):
+                    if id >= self.mbfSedNb:
+                        raise ValueError('The number of sedControl membership functions does not match the number of defined ones.')
+                    element = None
+                    element = defS.find('name')
+                    if element is not None:
+                        self.mbfSedName[id] = element.text
+                    else:
+                        raise ValueError('Membership function name %d is missing in the sedControl structure.'%id)
+                    element = None
+                    element = defS.find('file')
+                    if element is not None:
+                        self.mbfSedFile[id] = element.text
+                        if not os.path.isfile(element.text):
+                            raise ValueError('Membership function file is missing or the given path is incorrect %s.'%element.text)
+                    else:
+                        raise ValueError('Membership function file %d is missing in the sedControl structure.'%id)
+                    id += 1
+                if id < self.mbfSedNb-1:
+                    raise ValueError('Number of membership functions declared for sedControl is not matching with the mbfNb value.')
+            prod = None
+            prod = mbf.find('prodControl')
+            if prod is not None:
+                element = None
+                element = prod.find('mbfNb')
+                if element is not None:
+                    self.mbfProdNb = int(element.text)
+                else:
+                    raise ValueError('Error in the definition of the prodControl: number of membership function is required')
+                self.mbfProdName = numpy.empty(self.mbfProdNb, dtype="S10")
+                self.mbfProdFile = numpy.empty(self.mbfProdNb, dtype=object)
+                id = 0
+                for defP in prod.iter('mbf'):
+                    if id >= self.mbfProdNb:
+                        raise ValueError('The number of prodControl membership functions does not match the number of defined ones.')
+                    element = None
+                    element = defP.find('name')
+                    if element is not None:
+                        self.mbfProdName[id] = element.text
+                    else:
+                        raise ValueError('Membership function name %d is missing in the prodControl structure.'%id)
+                    element = None
+                    element = defP.find('file')
+                    if element is not None:
+                        self.mbfProdFile[id] = element.text
+                        if not os.path.isfile(element.text):
+                            raise ValueError('Membership function file is missing or the given path is incorrect %s.'%element.text)
+                    else:
+                        raise ValueError('Membership function file %d is missing in the prodControl structure.'%id)
+                    id += 1
+                if id < self.mbfProdNb-1:
+                    raise ValueError('Number of membership functions declared for prodControl is not matching with the mbfNb value.')
+            else:
+                raise ValueError('Error in the XmL file: membershipFunction prodControl structure definition is required!')
+            dis = None
+            dis = mbf.find('disControl')
+            if dis is not None:
+                element = None
+                element = dis.find('mbfNb')
+                if element is not None:
+                    self.mbfDisNb = int(element.text)
+                else:
+                    raise ValueError('Error in the definition of the disControl: number of membership function is required')
+                self.mbfDisName = numpy.empty(self.mbfDisNb, dtype="S10")
+                self.mbfDisFile = numpy.empty(self.mbfDisNb, dtype=object)
+                id = 0
+                for defD in dis.iter('mbf'):
+                    if id >= self.mbfDisNb:
+                        raise ValueError('The number of disControl membership functions does not match the number of defined ones.')
+                    element = None
+                    element = defD.find('name')
+                    if element is not None:
+                        self.mbfDisName[id] = element.text
+                    else:
+                        raise ValueError('Membership function name %d is missing in the disControl structure.'%id)
+                    element = None
+                    element = defD.find('file')
+                    if element is not None:
+                        self.mbfDisFile[id] = element.text
+                        if not os.path.isfile(element.text):
+                            raise ValueError('Membership function file is missing or the given path is incorrect %s.'%element.text)
+                    else:
+                        raise ValueError('Membership function file %d is missing in the disControl structure.'%id)
+                    id += 1
+                if id < self.mbfDisNb:
+                    raise ValueError('Number of membership functions declared for disControl is not matching with the mbfNb value.')
+        else:
+            raise ValueError('Error in the XmL file: membershipFunction structure definition is required!')
+
+        # Extract habitats structure information
         litho = None
-        litho = root.find('lithofacies')
+        litho = root.find('habitats')
         if litho is not None:
             element = None
-            element = litho.find('faciesNb')
+            element = litho.find('habitatNb')
             if element is not None:
                 self.faciesNb = int(element.text)
             else:
-                raise ValueError('Error in the definition of the lithofacies: number of facies is required')
+                raise ValueError('Error in the definition of the habitats: number of habitats is required')
             element = None
             element = litho.find('waterD')
             if element is not None:
@@ -250,55 +443,142 @@ class xmlParser:
                 self.diffH = float(element.text)
             else:
                 self.diffH = 1.
-            self.faciesName = numpy.empty(self.faciesNb, dtype="S10")
-            self.density = numpy.zeros(self.faciesNb, dtype=float)
-            self.porosity = numpy.zeros(self.faciesNb, dtype=float)
-            self.efficiency = numpy.zeros(self.faciesNb, dtype=float)
-            self.diffusion = numpy.zeros(self.faciesNb, dtype=float)
-            self.faciesDiam = numpy.zeros(self.faciesNb, dtype=float)
+            self.faciesName = numpy.empty(self.faciesNb*2, dtype="S14")
+            self.density = numpy.zeros(self.faciesNb*2, dtype=float)
+            self.porosity = numpy.zeros(self.faciesNb*2, dtype=float)
+            self.efficiency = numpy.zeros(self.faciesNb*2, dtype=float)
+            self.diffusion = numpy.zeros(self.faciesNb*2, dtype=float)
+            self.faciesDiam = numpy.zeros(self.faciesNb*2, dtype=float)
             id = 0
-            for facies in litho.iter('facies'):
+            for facies in litho.iter('habitat'):
                 if id >= self.faciesNb:
-                    raise ValueError('The number of facies does not match the number of defined ones.')
+                    raise ValueError('The number of habitats does not match the number of defined ones.')
                 element = None
                 element = facies.find('name')
                 if element is not None:
                     self.faciesName[id] = element.text
+                    self.faciesName[id+self.faciesNb] = element.text+str('_sed')
                 else:
-                    raise ValueError('Facies name %d is missing in the lithofacies structure.'%id)
+                    raise ValueError('Habitat name %d is missing in the habitat structure.'%id)
                 element = None
                 element = facies.find('sedD')
                 if element is not None:
                     self.density[id] = float(element.text)
+                    self.density[id+self.faciesNb] = self.density[id]
                 else:
                     self.density[id] = 2650.0
+                    self.density[id+self.faciesNb] = self.density[id]
                 element = None
                 element = facies.find('porosity')
                 if element is not None:
                     self.porosity[id] = float(element.text)
+                    self.porosity[id+self.faciesNb] = self.porosity[id]
                 else:
                     self.porosity[id] = 0.4
+                    self.porosity[id+self.faciesNb] = self.porosity[id]
                 element = None
                 element = facies.find('efficiency')
                 if element is not None:
-                    self.efficiency[id] = float(element.text)*0.7
+                    self.efficiency[id] = -1.
+                    self.efficiency[id+self.faciesNb] = float(element.text)*0.7
                 else:
-                    self.efficiency[id] = 0.
+                    self.efficiency[id] = -1.
+                    self.efficiency[id+self.faciesNb] = 0.
                 element = None
                 element = facies.find('diffusion')
                 if element is not None:
-                    self.diffusion[id] = float(element.text)
+                    self.diffusion[id] = 0.
+                    self.efficiency[id+self.faciesNb] = float(element.text)
                 else:
-                    self.diffusion[id] = 0.1
+                    self.diffusion[id] = 0.
+                    self.efficiency[id+self.faciesNb] = 0.1
                 element = None
                 element = facies.find('diam')
                 if element is not None:
                     self.faciesDiam[id] = float(element.text)*0.001
+                    self.faciesDiam[id+self.faciesNb] = float(element.text)*0.001
                 else:
-                    raise ValueError('Diameter %d is missing in the lithofacies structure.'%id)
+                    raise ValueError('Diameter %d is missing in the habitats structure.'%id)
                 id += 1
+            self.faciesNb += self.faciesNb
         else:
-            raise ValueError('Error in the XmL file: lithofacies structure definition is required!')
+            raise ValueError('Error in the XmL file: habitats structure definition is required!')
+
+        # Extract fuzzy rules structure information
+        fuzz = None
+        fuzz = root.find('fuzzyRule')
+        if fuzz is not None:
+            element = None
+            element = fuzz.find('ruleNb')
+            if element is not None:
+                self.fuzzNb = int(element.text)
+            else:
+                raise ValueError('Error in the definition of the fuzzy rules: number of rules is required')
+            self.fuzzHabitat = -numpy.ones(self.fuzzNb, dtype=int)
+            self.fuzzDepth = -numpy.ones(self.fuzzNb, dtype=int)
+            self.fuzzWave = -numpy.ones(self.fuzzNb, dtype=int)
+            self.fuzzSed = -numpy.ones(self.fuzzNb, dtype=int)
+            self.fuzzProd = -numpy.ones(self.fuzzNb, dtype=int)
+            self.fuzzDis = -numpy.ones(self.fuzzNb, dtype=int)
+            id = 0
+            for furu in fuzz.iter('rule'):
+                if id >= self.fuzzNb:
+                    raise ValueError('The number of fuzzy rules does not match the number of defined ones.')
+                element = None
+                element = furu.find('habitat')
+                if element is not None:
+                    tmp = numpy.where(self.faciesName == element.text)[0]
+                    if len(tmp) > 0:
+                        self.fuzzHabitat[id] = int(tmp[0])
+                    else:
+                        raise ValueError('Error the habitat name provided in fuzzy rule %d is unknown!'%id)
+                element = None
+                element = furu.find('depthControl')
+                if element is not None:
+                    tmp = numpy.where(self.mbfDepthName == element.text)[0]
+                    if len(tmp) > 0:
+                        self.fuzzDepth[id] = int(tmp[0])
+                    else:
+                        raise ValueError('Error the depth control name provided in fuzzy rule %d is unknown!'%id)
+                element = None
+                element = furu.find('waveControl')
+                if element is not None:
+                    tmp = numpy.where(self.mbfWaveName == element.text)[0]
+                    if len(tmp) > 0:
+                        self.fuzzWave[id] = int(tmp[0])
+                    else:
+                        raise ValueError('Error the wave control name provided in fuzzy rule %d is unknown!'%id)
+                element = None
+                element = furu.find('sedControl')
+                if element is not None:
+                    tmp = numpy.where(self.mbfSedName == element.text)[0]
+                    if len(tmp) > 0:
+                        self.fuzzSed[id] = int(tmp[0])
+                    else:
+                        raise ValueError('Error the sediment control name provided in fuzzy rule %d is unknown!'%id)
+                element = None
+                element = furu.find('prodControl')
+                if element is not None:
+                    tmp = numpy.where(self.mbfProdName == element.text)[0]
+                    if len(tmp) > 0:
+                        self.fuzzProd[id] = int(tmp[0])
+                    else:
+                        raise ValueError('Error the production control name provided in fuzzy rule %d is unknown!'%id)
+                element = None
+                element = furu.find('disControl')
+                if element is not None:
+                    tmp = numpy.where(self.mbfDisName == element.text)[0]
+                    if len(tmp) > 0:
+                        self.fuzzDis[id] = int(tmp[0])
+                    else:
+                        raise ValueError('Error the disintegration control name provided in fuzzy rule %d is unknown!'%id)
+                if self.fuzzDis[id] == -1 and self.fuzzProd[id] == -1:
+                    raise ValueError('Error in the fuzzy rule %d: either a production or disintegration control needs to be define!'%id)
+                id += 1
+            if id < self.fuzzNb:
+                raise ValueError('Number of fuzzy rules declared is not matching with the fuzzNb value.')
+        else:
+            raise ValueError('Error in the XmL file: fuzzy rules structure definition is required!')
 
         # Extract basement structure information
         strat = None

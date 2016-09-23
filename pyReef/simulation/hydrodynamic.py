@@ -407,52 +407,6 @@ class hydrodynamic:
 
          return
 
-    def _change_layer(self, elev, strata, lID, sedNb):
-         """
-         This function modify the stratal layer based on diffusion.
-
-         Parameters
-         ----------
-
-         variable : elev
-            Updated elevation.
-
-         variable: strata
-            Stratigraphic data.
-
-         variable: lID
-            Stratigraphic layer ID.
-
-         variable: sedNb
-            Number of facies.
-
-         """
-
-         for i in range(self.i1,self.i2):
-            for j in range(1,shape[1]-1):
-                updateH = self.diffdh
-                for l in range(lID,-1,-1):
-                    th = strata.stratTH[i-self.i1,j-1,l]
-                    if th > 0:
-                        perc = strata.sedTH[i-self.i1,j-1,l,:]/th
-                        if th >= updateH:
-                            self.actlay[i,j,0:sedNb] += updateH*perc[0:sedNb]
-                            strata.stratTH[i-self.i1,j-1,l] -= updateH
-                            strata.sedTH[i-self.i1,j-1,l,0:sedNb] -= updateH*perc[0:sedNb]
-                            updateH = 0.
-                        else:
-                            self.actlay[i,j,:] += th*perc
-                            strata.stratTH[i-self.i1,j-1,l] = 0.
-                            strata.sedTH[i-self.i1,j-1,l,:] = 0.
-                            updateH -= th
-                    if updateH <= 0:
-                        break
-         tmp = self.actlay.reshape(shape[0]*shape[1]*sedNb)
-         self.comm.Allreduce(mpi.IN_PLACE, tmp, op=mpi.MAX)
-         self.actlay = tmp.reshape(shape[0],shape[1],sedNb)
-
-         return
-
     def _assignBCs(self, z):
         """
         Pads the boundaries of a grid. Boundary condition pads the boundaries
@@ -534,30 +488,30 @@ class hydrodynamic:
          row,col = numpy.where(depth>0.)
 
          for sed in range(input.faciesNb):
+             if self.efficiency[sed] > 0.:
+                 As.fill(0.)
+                 CD.fill(0.)
+                 Ucr.fill(0.)
+                 qt.fill(0.)
 
-             As.fill(0.)
-             CD.fill(0.)
-             Ucr.fill(0.)
-             qt.fill(0.)
+                 As[row,col] = 0.005*depth[row,col]*(self.d50[sed]/depth[row,col])**1.2
+                 As[row,col] += 0.012*self.d50[sed]*self.Dstar[sed]**(-0.6)
+                 As /= self.dSVR[sed]
+                 CD[row,col] = (0.4/(numpy.log(depth[row,col]/0.006)-1.))**2
 
-             As[row,col] = 0.005*depth[row,col]*(self.d50[sed]/depth[row,col])**1.2
-             As[row,col] += 0.012*self.d50[sed]*self.Dstar[sed]**(-0.6)
-             As /= self.dSVR[sed]
-             CD[row,col] = (0.4/(numpy.log(depth[row,col]/0.006)-1.))**2
+                 if self.d50[sed] <= 0.0005:
+                     Ucr[row,col] = 0.19*numpy.log10(4.*depth[row,col]/self.d50[sed])*self.d50[sed]**0.1
+                 else:
+                     Ucr[row,col] = 8.5*numpy.log10(4.*depth[row,col]/self.d50[sed])*self.d50[sed]**0.6
 
-             if self.d50[sed] <= 0.0005:
-                 Ucr[row,col] = 0.19*numpy.log10(4.*depth[row,col]/self.d50[sed])*self.d50[sed]**0.1
-             else:
-                 Ucr[row,col] = 8.5*numpy.log10(4.*depth[row,col]/self.d50[sed])*self.d50[sed]**0.6
+                 Ucr[Ucr<0] = 0.
+                 frac = (1.-self.porosity[sed])*self.res**2
 
-             Ucr[Ucr<0] = 0.
-             frac = (1.-self.porosity[sed])*self.res**2
-
-             # Define total load from Soulsby Van Rijn formulation
-             qt[row,col] = As[row,col] * speed[row,col] * ( numpy.sqrt(speed[row,col]**2 + \
-                0.018*self.Urms[clim][row,col]/CD[row,col]) - Ucr[row,col] )**2.4 * (1.-1.6*smag[row,col])
-             qt[numpy.isnan(qt)] = 0.
-             self.erosion[:,:,sed] = qt/frac
+                 # Define total load from Soulsby Van Rijn formulation
+                 qt[row,col] = As[row,col] * speed[row,col] * ( numpy.sqrt(speed[row,col]**2 + \
+                    0.018*self.Urms[clim][row,col]/CD[row,col]) - Ucr[row,col] )**2.4 * (1.-1.6*smag[row,col])
+                 qt[numpy.isnan(qt)] = 0.
+                 self.erosion[:,:,sed] = qt/frac
 
          return
 
@@ -780,12 +734,13 @@ class hydrodynamic:
          r,c = numpy.where(z-self.sl[-1]>=0)
          entrain[r,c,:] = 0.
          for sed in range(0,input.faciesNb):
-             tmpE = entrain[:,:,sed]
-             r,c = numpy.where(tmpE<-self.actlay[:,:,sed])
-             tmpE[r,c] = -self.actlay[r,c,sed]
-             self.actlay[:,:,sed] += tmpE
-             entrain[:,:,sed] = tmpE
-             z += tmpE
+             if self.efficiency[sed]>0:
+                 tmpE = entrain[:,:,sed]
+                 r,c = numpy.where(tmpE<-self.actlay[:,:,sed])
+                 tmpE[r,c] = -self.actlay[r,c,sed]
+                 self.actlay[:,:,sed] += tmpE
+                 entrain[:,:,sed] = tmpE
+                 z += tmpE
 
          if self.rank == 0:
              print '     +   Erosion computation took %0.02f seconds to run.' %(time.clock()-tw)
@@ -822,13 +777,13 @@ class hydrodynamic:
              for i in range(z.shape[0]):
                 for j in range(z.shape[1]):
                    for sed in range(input.faciesNb):
-                       if sedcharge[i,j,sed] > 0. and t_stp == 0:
+                       if sedcharge[i,j,sed] > 0. and t_stp == 0 and self.efficiency[sed] > 0.:
                             tdist0 = self.prop0[i,j]*sedcharge[i,j,sed]
                             tdist1 = self.prop1[i,j]*sedcharge[i,j,sed]
                             newcharge[self.ptI0[i,j],self.ptJ0[i,j],sed] += tdist0
                             newcharge[self.ptI1[i,j],self.ptJ1[i,j],sed] += tdist1
                        # Move sediments to neighbouring cells
-                       elif sedcharge[i,j,sed] > 0.:
+                       elif sedcharge[i,j,sed] > 0. and self.efficiency[sed] > 0.:
                            depo[i,j,sed] += (1.-self.efficiency[sed])*sedcharge[i,j,sed]
                            tdist0 = self.prop0[i,j]*self.efficiency[sed]*sedcharge[i,j,sed]
                            tdist1 = self.prop1[i,j]*self.efficiency[sed]*sedcharge[i,j,sed]
@@ -860,26 +815,12 @@ class hydrodynamic:
          if self.rank == 0:
              print '     +   Deposition computation took %0.02f seconds to run and converged in %d iterations.' %(time.clock()-tw,t_stp)
 
-         # Diffusion transport
-         #tw = time.clock()
-         #for sed in range(input.faciesNb):
-         #  dh = numpy.zeros(z.shape)
-            #  dh[1:-1,1:-1] += dt*self.diffusion[sed]*( (z[:-2,1:-1]-2*z[1:-1,1:-1]+z[2:,1:-1]) +
-            #                   (z[1:-1,:-2]-2*z[1:-1,1:-1]+z[1:-1,2:]) )/(self.res**2*self.secyear)
-            #totDep += dh+entrain[:,:,sed]+depo[:,:,sed]
-         #     z += dh
-
-         #self.dh.append(totH)
-        #  if self.rank == 0:
-        #      print '     +   Diffusion computation took %0.02f seconds to run.' %(time.clock()-tw)
-
          if self.rank == 0:
              print '   -   Morphological change took %0.02f seconds to run.' %(time.clock()-tm)
              if abs(numpy.sum(self.dh[-1])) < 0.001:
                  print '   -   Mass balance check ok.'
              else:
                  print '   -   Mass balance check: ',numpy.sum(self.dh[-1])
-
 
          return
 

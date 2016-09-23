@@ -142,6 +142,7 @@
 			</mbf>
 		</prodControl>
 		<!-- Disintegration control on carbonate evolution. -->
+		<?ignore
 		<disControl>
 			<mbfNb>3</mbfNb>
 			<!-- Membership functions definition -->
@@ -164,6 +165,7 @@
 				<file>data/mbf_high_dis.csv</file>
 			</mbf>
 		</disControl>
+		?>
 	</membershipFunction>
 
 	<!-- Habitats structure -->
@@ -211,6 +213,8 @@
 
 	<!-- Fuzzy logic rules structure -->
 	<fuzzyRule>
+		<!-- Number of rules -->
+		<ruleNb>2</ruleNb>
 		<!-- Each rule defines a specific habitat behavior (production/disintegration)
 	 			 associated to one or several external forcing conditions (depth, wave,
 				 sedimentation) -->
@@ -225,15 +229,9 @@
 			<!-- Influence of depth membership function. The function name is defined in
 		 			 the membership function structure <membershipFunction>. -->
 			<depthControl>shallow</depthControl>
-			<!-- Operator used to connect the membership function together. Choice is either AND or
-					 OR.-->
-			<operator>and</operator>
 			<!-- Influence of wave membership function. The function name is defined in
 		 			 the membership function structure <membershipFunction>. -->
 			<waveControl>medWave</waveControl>
-			<!-- Operator used to connect the membership function together. Choice is either AND or
-					 OR.-->
-			<operator>and</operator>
 			<!-- Influence of sedimentation membership function. The function name is defined in
 		 			 the membership function structure <membershipFunction>. -->
 			<sedControl>lowSed</sedControl>
@@ -253,9 +251,6 @@
 			<!-- Influence of depth membership function. The function name is defined in
 		 			 the membership function structure <membershipFunction>. -->
 			<depthControl>medium</depthControl>
-			<!-- Operator used to connect the membership function together. Choice is either AND or
-					 OR.-->
-			<operator>and</operator>
 			<!-- Influence of wave membership function. The function name is defined in
 		 			 the membership function structure <membershipFunction>. -->
 			<waveControl>highWave</waveControl>
@@ -264,9 +259,11 @@
 		 		 	 the membership function structure <membershipFunction>. -->
 			<prodControl>medProd</prodControl>
 		</rule>
+
+		<?ignore
 		<rule>
 			<!-- Considering the following rule:
-						Rudist disintegration is high in deep environments OR high
+						Rudist disintegration is high in deep environments and high
 							sedimentation.
 					  The rule is defined in the XML file using the following structure. -->
 			<!-- Type of habitat the rule is defined for. The habitat name is defined in
@@ -275,17 +272,15 @@
 			<!-- Influence of depth membership function. The function name is defined in
 		 			 the membership function structure <membershipFunction>. -->
 			<depthControl>deep</depthControl>
-			<!-- Operator used to connect the membership function together. Choice is either AND or
-					 OR.-->
-			<operator>or</operator>
 			<!-- Influence of sedimentation membership function. The function name is defined in
 		 			 the membership function structure <membershipFunction>. -->
 			<sedControl>highSed</sedControl>
 			<!-- Define the membership function associated to either production or
 					 disintegration of the considered habitat. The function name is defined in
 		 		 	 the membership function structure <membershipFunction>. -->
-			<prodControl>highDis</prodControl>
+			<disControl>highDis</disControl>
 		</rule>
+		?>
 	</fuzzyRule>
 
 	<!-- Basement structure:
