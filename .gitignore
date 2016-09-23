@@ -7,7 +7,6 @@
 Test/.ipynb_checkpoints/
 *.swp
 *.hdf5
-*.png
 *.bot
 *.swn
 *.pvd
