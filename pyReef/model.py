@@ -195,6 +195,7 @@ class Model(object):
                     # Compute wave field and associated bottom current conditions
                     self.waveID = self.hydro.swan_run(self.input, self.force, self.pyGrid.regZ,
                                                       self.pyStrat, self.waveID, self.pyStrat.layID)
+                    self.carb.carb_update_params(self.hydro.cumwH,self.hydro.dh)
 
                     # Update next wave time step
                     self.force.next_wave += self.force.time_wave
@@ -206,7 +207,7 @@ class Model(object):
 
             # Update carbonate parameters
             if self.force.next_carb <= self.tNow and self.force.next_carb < self.input.tEnd:
-                self.carb.interpret_MBF(self.pyGrid.regZ,wave,sed)
+                self.pyStrat,self.pyGrid.regZ = self.carb.interpret_MBF(self.pyGrid.regZ, self.pyStrat)
                 self.force.next_carb += self.input.tCarb
 
             # Perform diffusion

@@ -33,6 +33,7 @@ class carbonates:
         Constructor.
         """
 
+        self.timeCarb = input.tCarb
         self.rank = mpi.COMM_WORLD.rank
         self.size = mpi.COMM_WORLD.size
         self.comm = mpi.COMM_WORLD
@@ -105,9 +106,33 @@ class carbonates:
         self.fuzzProd = input.fuzzProd
         self.fuzzDis = input.fuzzDis
 
+        self.nbstep = 0
+        self.meanSed = None
+        self.meanWave = None
+
         return
 
-    def interpret_MBF(self, elev, wave, sed):
+    def carb_update_params(self, wave, sed):
+        """
+        Update parameters used for fuzzy logic computation.
+
+        Parameters
+        ----------
+
+        variable : wave
+            Average wave energy data obtained from climatic forcing.
+
+        variable : sed
+            Sedimentation since last call.
+        """
+
+        self.meanSed += sed
+        self.meanWave += wave
+        self.nbstep += 1
+
+        return
+
+    def interpret_MBF(self, elev, strata):
         """
         Based on the membership functions, we define the fuzzy relationship between input and output variables.
 
@@ -117,12 +142,13 @@ class carbonates:
         variable : elev
             Elevation data from pyReef simulation grid.
 
-        variable : wave
-            Average wave energy data obtained from climatic forcing.
+        variable : strata
+            Sedimentary layer from pyReef stratal grid.
 
-        variable : sed
-            Sedimentation since last call.
         """
+
+        self.meanWave /= self.nbstep
+        self.nbstep = 0
 
         shape = elev.shape
         prod = numpy.zeros(shape[0],shape[1],self.faciesNb)
@@ -141,32 +167,67 @@ class carbonates:
                        depthIM[m] = fuzz.interp_membership(self.MBFdepth[m], self.MBFwaveFuzz[m], -elev[i,j])
 
                for m in range(self.mbfWaveNb):
-                   if wave[i,j] > self.MBFwave[m].max():
+                   if self.meanWave[i,j] > self.MBFwave[m].max():
                        waveIM[m] = fuzz.interp_membership(self.MBFwave[m], self.MBFwaveFuzz[m], self.MBFwave[m].max())
-                   elif wave[i,j] < self.MBFwave[m].min():
+                   elif self.meanWave[i,j] < self.MBFwave[m].min():
                        waveIM[m] = fuzz.interp_membership(self.MBFwave[m], self.MBFwaveFuzz[m], self.MBFwave[m].min())
                    else:
-                       waveIM[m] = fuzz.interp_membership(self.MBFwave[m], self.MBFwaveFuzz[m], wave[i,j])
+                       waveIM[m] = fuzz.interp_membership(self.MBFwave[m], self.MBFwaveFuzz[m], self.meanWave[i,j])
 
                for m in range(self.mbfSedNb):
-                   if sed[i,j] > self.MBFsed[m].max():
+                   if self.meanSed[i,j] > self.MBFsed[m].max():
                        sedIM[m] = fuzz.interp_membership(self.MBFsed[m], self.MBFsedFuzz[m], self.MBFsed[m].max())
-                   elif sed[i,j] < self.MBFsed[m].min():
+                   elif self.meanSed[i,j] < self.MBFsed[m].min():
                        sedIM[m] = fuzz.interp_membership(self.MBFsed[m], self.MBFsedFuzz[m], self.MBFsed[m].min())
                    else:
-                       sedIM[m] = fuzz.interp_membership(self.MBFsed[m], self.MBFsedFuzz[m], sed[i,j])
+                       sedIM[m] = fuzz.interp_membership(self.MBFsed[m], self.MBFsedFuzz[m], self.meanSed[i,j])
 
                prod[i,j,:],dis[i,j,:] = self._fuzzyRules_activation(depthIM, waveIM, sedIM)
 
-        tmp = prod.reshape(shape[0]*shape[1]*self.faciesNb)
-        self.comm.Allreduce(mpi.IN_PLACE, tmp, op=mpi.MAX)
-        self.prod = tmp.reshape(shape[0],shape[1],sedNb)
+               for s in range(self.faciesNb):
+                   if dis[i,j,s] > 0.:
+                       tmp = dis[i,j,s]
+                       if tmp > strata.sedTH[i-self.i1,j,-1,s]:
+                            tmp = strata.sedTH[i-self.i1,j,-1,s]
+                       strat.sedTH[i-self.i1,j,-1,s] -= tmp
+                       strat.sedTH[i-self.i1,j,-1,s+self.faciesNb] += tmp
+                   if prod[i,j,s] > 0.:
+                       tmp = prod[i,j,s]
+                       strat.sedTH[i-self.i1,j,-1,s] += tmp
+                       strata.stratTH[i-self.i1,j,-1] += tmp
+                       elev[i,j] += tmp
 
-        tmp = dis.reshape(shape[0]*shape[1]*self.faciesNb)
+        tmp = elev.reshape(shape[0]*shape[1])
         self.comm.Allreduce(mpi.IN_PLACE, tmp, op=mpi.MAX)
-        self.dis = tmp.reshape(shape[0]*shape[1]*self.faciesNb)
+        z = tmp.reshape(shape[0],shape[1])
 
-        return
+        elev = self._assignBorders(z)
+
+        self.meanWave.afill(0.)
+        self.meanSed.afill(0.)
+
+        return strat, elev
+
+    def _assignBorders(self, z):
+        """
+        Pads the boundaries of a grid. Boundary condition pads the boundaries
+        with equivalent values to the data margins, e.g. x[-1,1] = x[1,1].
+        It creates a grid 2 rows and 2 columns larger than the input.
+        """
+
+        # Assign boundary conditions - sides
+        z[0,1:-1] = z[1,1:-1]
+        z[-1,1:-1] = z[-2,1:-1]
+        z[1:-1,0] = z[1:-1,1]
+        z[1:-1,-1] = z[1:-1,-1]
+
+        # Assign boundary conditions - corners
+        z[0,0] = z[1,1]
+        z[0,-1] = z[1,-2]
+        z[-1,0] = z[-2,1]
+        z[-1,-1] = z[-2,-2]
+
+        return z
 
     def _fuzzyRules_activation(self, depthIM, waveIM, sedIM):
         """
@@ -217,7 +278,7 @@ class carbonates:
                         rule.append(numpy.fmin(tmp_active,self.MBFdistFuzz[self.fuzzDis[r]]))
 
             # With the activity of each output membership function known, all output membership functions
-            #  must be combined. This step is also known as aggregation.
+            # must be combined e.g. aggregation.
             if len(prodlist) > 0:
                 ruleID = prodlist[0]
                 tmp_aggregate = rule[ruleID]

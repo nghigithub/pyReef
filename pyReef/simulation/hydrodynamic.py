@@ -39,6 +39,7 @@ class hydrodynamic:
         self.comm = mpi.COMM_WORLD
         self.fcomm = mpi.COMM_WORLD.py2f()
 
+        self.cumwH = 0.
         self.nbtides = 1
         self.secyear = 3.154e+7
         self.tWave = None
@@ -247,6 +248,7 @@ class hydrodynamic:
 
          # Loop through the different wave climates and store swan output information
          force.wclim = input.climNb[input.wavelist[wID]]
+         self.cumwH = 0.
 
          for clim in range(force.wclim):
 
@@ -717,6 +719,7 @@ class hydrodynamic:
          tm = time.clock()
          dt = self.tWave*force.Perc[clim]*self.secyear/self.nbtides
          speed = numpy.sqrt(force.wavU[clim]**2+force.wavV[clim]**2)
+         self.cumwH += force.Perc[clim]*force.wavH[clim]/self.nbtides
 
          # Erosion thickness
          tw = time.clock()
