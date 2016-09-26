@@ -17,4 +17,5 @@ from .simulation import map2strat
 from .simulation import modelPlot
 from .simulation import raster2surf
 from .simulation import hydrodynamic
+from .simulation import carbonates
 from .libUtils import *

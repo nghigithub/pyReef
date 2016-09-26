@@ -2,7 +2,7 @@ import time
 import numpy as np
 import mpi4py.MPI as mpi
 
-from pyReef import (modelPlot, hydrodynamic, forceSim, outputGrid, raster2surf, map2strat, xmlParser)
+from pyReef import (modelPlot, hydrodynamic, carbonates, forceSim, outputGrid, raster2surf, map2strat, xmlParser)
 
 from pyReef.libUtils  import simswan as swan
 
@@ -83,6 +83,9 @@ class Model(object):
                                                self.input.Wfactor, self.pyGrid.regX, self.pyGrid.regY,
                                                self.pyGrid.partIDs)
 
+        # Initialise carbonate fuzzy logic
+        self.carb = carbonates.carbonates(self.input, self.pyGrid.partIDs)
+
         # Define display and wave climate next time step
         self.force.next_display = self.input.tStart
         self.force.next_layer = self.input.tStart + self.force.time_layer
@@ -138,8 +141,8 @@ class Model(object):
             self.tDisp = self.input.tStart
             self.force.next_display = self.input.tStart + self.force.time_layer
             self.force.next_diff =  self.input.tStart + self.input.tDiff
+            self.force.next_carb = self.input.tStart + self.input.tCarb
             self.force.next_disp = self.force.T_disp[0, 0]
-            self.force.next_carb = self.input.tStart
             self.exitTime = self.input.tEnd
             self.simStarted = True
 
@@ -203,9 +206,8 @@ class Model(object):
 
             # Update carbonate parameters
             if self.force.next_carb <= self.tNow and self.force.next_carb < self.input.tEnd:
+                self.carb.interpret_MBF(self.pyGrid.regZ,wave,sed)
                 self.force.next_carb += self.input.tCarb
-                # if self.force.next_carb > self.force.next_display:
-                #     self.force.next_carb = self.force.next_display
 
             # Perform diffusion
             if self.force.next_diff <= self.tNow and self.force.next_diff < self.input.tEnd:
