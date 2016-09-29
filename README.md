@@ -11,8 +11,8 @@ _A schematic view of 2D carbonate platform evolution model illustrating the main
 
 ## Overview
 
-**pyReef** is a stratigraphic forward model that predicts reef evolution over geological time scale. This parallel, open-source model uses [**SWAN**](http://swanmodel.sourceforge.net) (wave generation model) to simulate wave propagation under different climatic conditions and associated sediment transport. 
+**pyReef** is a stratigraphic forward model that predicts reef evolution over geological time scale. This parallel, open-source model uses [**swan**](http://swanmodel.sourceforge.net) (wave generation model) to simulate wave propagation under different climatic conditions and associated sediment transport. 
 
 Multiple carbonate facies are simulated using a set of fuzzy logic rules from [**scikit-fuzzy**](https://github.com/scikit-fuzzy/scikit-fuzzy) which are based on wave energy, sedimentation and depth as well as tectonic and oceanic forcings (ocean temperature and salinity, eustasy). 
 
-This work is conducted within the USyd School of Geosciences [Geoscoastal Group](http://sydney.edu.au/science/geosciences/research/re_geocoastal.shtml) and relies on the group extensive dataset obtained at [One Tree Reef](http://sydney.edu.au/science/oti/) (Great Barrier Reef).
+This work is conducted within the USyd School of Geosciences [**Geoscoastal Group**](http://sydney.edu.au/science/geosciences/research/re_geocoastal.shtml) and relies on the group extensive dataset obtained at [**One Tree Reef**](http://sydney.edu.au/science/oti/) (Great Barrier Reef).
